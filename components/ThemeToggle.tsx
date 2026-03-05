@@ -13,16 +13,16 @@ export default function ThemeToggle() {
   if (!mounted) return null
 
   const isDark = theme === 'dark'
+  const label = isDark ? t('theme.light') : t('theme.dark')
 
   return (
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="flex items-center gap-3 px-4 py-2 rounded-full border-2 transition-transform hover:scale-105
-        dark:border-blue-400 dark:text-yellow-300
-        border-gray-400 text-gray-700"
+      title={label}
+      aria-label={label}
+      className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
     >
       <span className="text-lg">{isDark ? '☀️' : '🌙'}</span>
-      <span className="font-semibold text-sm">{isDark ? t('theme.light') : t('theme.dark')}</span>
     </button>
   )
 }

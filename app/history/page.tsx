@@ -130,7 +130,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCC1'} {t('history.title')}</h1>
 
       {loading ? (

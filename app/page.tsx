@@ -45,7 +45,7 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-10">
       {/* Hero */}
       <div className="text-center space-y-3">
         <h1 className="text-4xl font-black">{t('home.title')}</h1>
@@ -54,7 +54,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <hr className="border-[var(--border)]" />
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-6">
@@ -63,25 +63,25 @@ export default function HomePage() {
         <MetricCard label={t('home.latestTestDate')} value={metrics.latestTestDate} />
       </div>
 
-      <hr className="border-[var(--border)]" />
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
       {/* How to use */}
       <div>
         <h2 className="text-2xl font-bold mb-4">{`🚀 ${t('home.howToUse')}`}</h2>
         <div className="grid grid-cols-3 gap-6">
-          <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
             <h3 className="font-bold text-lg mb-2">{`1️⃣ ${t('home.uploadData')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.uploadDataDesc')}
             </p>
           </div>
-          <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
             <h3 className="font-bold text-lg mb-2">{`2️⃣ ${t('home.runAnalysis')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.runAnalysisDesc')}
             </p>
           </div>
-          <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
             <h3 className="font-bold text-lg mb-2">{`3️⃣ ${t('home.saveExplore')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.saveExploreDesc')}
@@ -90,7 +90,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <hr className="border-[var(--border)]" />
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
       {/* What's inside */}
       <div>

@@ -19,13 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <LanguageProvider>
             <AuthGate>
-              <div className="flex min-h-screen">
-                <Sidebar />
-                <main className="flex-1 p-8 overflow-auto flex flex-col">
-                  <div className="flex-1">{children}</div>
-                  <Footer />
-                </main>
-              </div>
+              <Sidebar />
+              <main className="min-h-screen pt-20 px-6 pb-8 flex flex-col">
+                <div className="flex-1">{children}</div>
+                <Footer />
+              </main>
             </AuthGate>
           </LanguageProvider>
         </ThemeProvider>

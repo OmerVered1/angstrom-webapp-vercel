@@ -507,7 +507,7 @@ export default function AnalysisPage() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCCA'} {t('analysis.title')}</h1>
 
       {error && (

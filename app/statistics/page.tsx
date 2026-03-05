@@ -575,7 +575,7 @@ export default function StatisticsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 px-4">
+    <div className="max-w-7xl mx-auto space-y-8 px-4">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCC8'} {t('statistics.title')}</h1>
 
       {loading ? <p className="text-[var(--text-muted)]">{t('common.loading')}</p> : filtered.length === 0 ? (

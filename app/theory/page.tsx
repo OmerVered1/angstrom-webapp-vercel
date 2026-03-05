@@ -28,7 +28,7 @@ export default function TheoryPage() {
   const { t } = useLanguage()
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className="max-w-5xl mx-auto space-y-10">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCD0'} {t('theory.title')}</h1>
 
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -134,7 +134,7 @@ export default function TheoryPage() {
         </div>
       </section>
 
-      <hr className="border-[var(--border)]" />
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* MATHEMATICAL DERIVATION                                            */}
@@ -247,7 +247,7 @@ export default function TheoryPage() {
         </div>
       </section>
 
-      <hr className="border-[var(--border)]" />
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* FINAL SOLUTIONS                                                    */}

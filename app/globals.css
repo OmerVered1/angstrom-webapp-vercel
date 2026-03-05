@@ -3,17 +3,21 @@
 :root {
   --bg: #ffffff;
   --bg-secondary: #f8f9fa;
+  --bg-tertiary: #f1f3f5;
   --text: #262730;
   --text-muted: #888;
   --border: #e5e7eb;
+  --accent-muted: rgba(52, 152, 219, 0.12);
 }
 
 .dark {
   --bg: #0f1117;
   --bg-secondary: #1a1c24;
+  --bg-tertiary: #252830;
   --text: #fafafa;
   --text-muted: #888;
   --border: #3d3d3d;
+  --accent-muted: rgba(52, 152, 219, 0.2);
 }
 
 body {
