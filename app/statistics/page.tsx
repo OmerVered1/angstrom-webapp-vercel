@@ -41,8 +41,15 @@ const Y_METRICS: YMetric[] = [
   { key: 'temperature_c', label: 'Temperature (\u00B0C)', extract: a => a.temperature_c ?? null },
 ]
 
-const GROUP_OPTIONS = ['Model', 'Period (exact)', 'Period Band', 'Temp Band', 'Calibration', 'Analysis Mode']
+const GROUP_OPTIONS = ['Model', 'Model + Period', 'Period (exact)', 'Period Band', 'Temp Band', 'Calibration', 'Analysis Mode']
 const X_OPTIONS = ['Period (s)', 'Frequency (Hz)', 'Temperature (\u00B0C)', 'Raw \u0394t (s)', 'ln term', 'A\u2081/A\u2082 ratio', 'System Lag (s)', 'A\u2081 (mW)', 'A\u2082 (mW)']
+
+const ALPHA_SERIES = [
+  { key: 'combined_raw', label: '\u03B1 Combined (raw)', extract: (a: Analysis) => a.alpha_combined_raw > 0 ? a.alpha_combined_raw * 1e6 : null },
+  { key: 'phase_raw', label: '\u03B1 Phase (raw)', extract: (a: Analysis) => a.alpha_phase_raw > 0 ? a.alpha_phase_raw * 1e6 : null },
+  { key: 'combined_cal', label: '\u03B1 Combined (cal)', extract: (a: Analysis) => (a.alpha_combined_cal ?? 0) > 0 ? a.alpha_combined_cal! * 1e6 : null },
+  { key: 'phase_cal', label: '\u03B1 Phase (cal)', extract: (a: Analysis) => (a.alpha_phase_cal ?? 0) > 0 ? a.alpha_phase_cal! * 1e6 : null },
+] as const
 
 function periodBand(p: number): string {
   if (p < 200) return '< 200 s'
@@ -63,6 +70,7 @@ function tempBand(t: number): string {
 function groupValue(a: Analysis, groupBy: string): string {
   switch (groupBy) {
     case 'Model': return a.model_name
+    case 'Model + Period': return `${a.model_name} | ${Math.round(a.period_t / 10) * 10}s`
     case 'Period (exact)': return `${Math.round(a.period_t / 10) * 10} s`
     case 'Period Band': return periodBand(a.period_t)
     case 'Temp Band': return tempBand(a.temperature_c ?? 25)
@@ -124,6 +132,11 @@ export default function StatisticsPage() {
   // Filters
   const [filterModels, setFilterModels] = useState<string[]>([])
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
+  const [filterPeriods, setFilterPeriods] = useState<string[]>([])
+
+  // Alpha vs Period series selector
+  const [selectedSeries, setSelectedSeries] = useState<string[]>(['combined_raw'])
+  const [showLitAlpha, setShowLitAlpha] = useState(true)
 
   const fetchData = useCallback(async () => {
     if (!isConfigured) { setLoading(false); return }
@@ -138,15 +151,17 @@ export default function StatisticsPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   const allModels = useMemo(() => Array.from(new Set(analyses.map(a => a.model_name))), [analyses])
+  const allPeriods = useMemo(() => Array.from(new Set(analyses.map(a => Math.round(a.period_t / 10) * 10 + ' s'))).sort(), [analyses])
 
   const filtered = useMemo(() => {
     return analyses.filter(a => {
       if (filterModels.length > 0 && !filterModels.includes(a.model_name)) return false
       if (filterCal === 'Calibrated' && !a.use_calibration) return false
       if (filterCal === 'Uncalibrated' && a.use_calibration) return false
+      if (filterPeriods.length > 0 && !filterPeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
       return true
     })
-  }, [analyses, filterModels, filterCal])
+  }, [analyses, filterModels, filterCal, filterPeriods])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -267,37 +282,51 @@ export default function StatisticsPage() {
   // ── Alpha vs Period by Model ──────────────────────────────────────────
 
   const alphaVsPeriodPlot = useMemo(() => {
-    if (filtered.length === 0) return null
+    if (filtered.length === 0 || selectedSeries.length === 0) return null
     const models = Array.from(new Set(filtered.map(a => a.model_name)))
+    const activeSeries = ALPHA_SERIES.filter(s => selectedSeries.includes(s.key))
+    const DASH_STYLES: ('solid' | 'dash' | 'dot' | 'dashdot')[] = ['solid', 'dash', 'dot', 'dashdot']
     const traces: Plotly.Data[] = []
 
     models.forEach((model, mi) => {
-      const subset = filtered.filter(a => a.model_name === model && a.alpha_combined_raw > 0)
-      if (subset.length === 0) return
-      traces.push({
-        x: subset.map(a => a.period_t),
-        y: subset.map(a => a.alpha_combined_raw * 1e6),
-        name: model, type: 'scatter' as const, mode: 'lines+markers' as const,
-        marker: { color: COLORS[mi % COLORS.length], size: 7 },
-        line: { color: COLORS[mi % COLORS.length], width: 1 },
+      activeSeries.forEach((series, si) => {
+        const subset = filtered.filter(a => a.model_name === model)
+        const xs: number[] = []
+        const ys: number[] = []
+        for (const a of subset) {
+          const v = series.extract(a)
+          if (v != null) { xs.push(a.period_t); ys.push(v) }
+        }
+        if (xs.length === 0) return
+        traces.push({
+          x: xs,
+          y: ys,
+          name: activeSeries.length > 1 ? `${model} (${series.label})` : model,
+          type: 'scatter' as const, mode: 'lines+markers' as const,
+          marker: { color: COLORS[mi % COLORS.length], size: 7, symbol: si },
+          line: { color: COLORS[mi % COLORS.length], width: 1, dash: DASH_STYLES[si % DASH_STYLES.length] },
+          legendgroup: model,
+        })
       })
     })
 
-    const litShapes = Object.entries(LITERATURE).map(([, { alpha, color }]) => ({
+    const seriesLabels = activeSeries.map(s => s.label).join(', ')
+
+    const litShapes = showLitAlpha ? Object.entries(LITERATURE).map(([, { alpha, color }]) => ({
       type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
       y0: alpha, y1: alpha,
       line: { color, dash: 'dash' as const, width: 1.5 },
-    }))
+    })) : []
 
-    const litAnn = Object.entries(LITERATURE).map(([name, { alpha, color }]) => ({
+    const litAnn = showLitAlpha ? Object.entries(LITERATURE).map(([name, { alpha, color }]) => ({
       x: 1, xref: 'paper' as const, y: alpha, text: name,
       showarrow: false, xanchor: 'left' as const, font: { color, size: 10 },
-    }))
+    })) : []
 
     return {
       data: traces,
       layout: {
-        title: '\u03B1 Combined (raw) vs Period \u2014 by Model',
+        title: `${seriesLabels} vs Period \u2014 by Model`,
         height: 420,
         xaxis: { title: 'Period (s)' },
         yaxis: { title: '\u03B1 (mm\u00B2/s)' },
@@ -308,7 +337,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered])
+  }, [filtered, selectedSeries, showLitAlpha])
 
   // ── Heat-loss indicators ──────────────────────────────────────────────
 
@@ -505,6 +534,33 @@ export default function StatisticsPage() {
     })
   }, [filtered])
 
+  // ── CSV download helper ─────────────────────────────────────────────────
+
+  const downloadStatsCsv = useCallback(() => {
+    const headers = [
+      'Model', 'N',
+      'alpha_comb_raw_mean', 'alpha_comb_raw_std', 'alpha_comb_raw_min', 'alpha_comb_raw_max',
+      'alpha_phase_raw_mean', 'alpha_phase_raw_std', 'alpha_phase_raw_min', 'alpha_phase_raw_max',
+      'alpha_comb_cal_mean', 'alpha_comb_cal_std', 'alpha_comb_cal_min', 'alpha_comb_cal_max',
+      'alpha_phase_cal_mean', 'alpha_phase_cal_std', 'alpha_phase_cal_min', 'alpha_phase_cal_max',
+    ]
+    const rows = summaryStats.map(s => [
+      s.model, s.n,
+      s.combRaw.mean, s.combRaw.std, s.combRaw.min, s.combRaw.max,
+      s.phaseRaw.mean, s.phaseRaw.std, s.phaseRaw.min, s.phaseRaw.max,
+      s.combCal.mean, s.combCal.std, s.combCal.min, s.combCal.max,
+      s.phaseCal.mean, s.phaseCal.std, s.phaseCal.min, s.phaseCal.max,
+    ].join(','))
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'summary_statistics.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [summaryStats])
+
   // ═══════════════════════════════════════════════════════════════════════════
 
   if (!isConfigured) {
@@ -525,7 +581,7 @@ export default function StatisticsPage() {
       ) : (
         <>
           {/* ── Filters ──────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">Models</label>
               <select multiple value={filterModels} onChange={e => setFilterModels(Array.from(e.target.selectedOptions).map(o => o.value))}
@@ -541,6 +597,14 @@ export default function StatisticsPage() {
                 <option>All</option><option>Calibrated</option><option>Uncalibrated</option>
               </select>
             </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">Periods</label>
+              <select multiple value={filterPeriods} onChange={e => setFilterPeriods(Array.from(e.target.selectedOptions).map(o => o.value))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
+                {allPeriods.map(p => <option key={p}>{p}</option>)}
+              </select>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Hold Cmd/Ctrl to multi-select</p>
+            </div>
             <div className="flex items-end">
               <p className="text-sm text-[var(--text-muted)]">{filtered.length} analyses selected</p>
             </div>
@@ -548,7 +612,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 1: Chart Builder ──────────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">Chart Builder</h2>
+            <h2 className="text-xl font-bold">1. Chart Builder</h2>
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">Y-Axis Metric</label>
@@ -612,8 +676,31 @@ export default function StatisticsPage() {
 
           {/* ── Section 2: Alpha vs Period ────────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">{'\u03B1'} vs Period — by Model</h2>
+            <h2 className="text-xl font-bold">2. {'\u03B1'} vs Period — by Model</h2>
             <p className="text-xs text-[var(--text-muted)]">Ideal: {'\u03B1'} constant across periods. Drift indicates frequency-dependent artifacts.</p>
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm font-medium">Series:</span>
+              {ALPHA_SERIES.map(s => (
+                <label key={s.key} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedSeries.includes(s.key)}
+                    onChange={e => {
+                      setSelectedSeries(prev =>
+                        e.target.checked ? [...prev, s.key] : prev.filter(k => k !== s.key)
+                      )
+                    }}
+                    className="accent-accent"
+                  />
+                  <span className="text-sm">{s.label}</span>
+                </label>
+              ))}
+              <span className="mx-2 text-[var(--border)]">|</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={showLitAlpha} onChange={e => setShowLitAlpha(e.target.checked)} className="accent-accent" />
+                <span className="text-sm">Literature reference lines</span>
+              </label>
+            </div>
             {alphaVsPeriodPlot && (
               <PlotlyChart
                 data={alphaVsPeriodPlot.data as Plotly.Data[]}
@@ -626,7 +713,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 3: Heat-Loss Indicators ──────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">Heat-Loss Indicators</h2>
+            <h2 className="text-xl font-bold">3. Heat-Loss Indicators</h2>
             <div className="grid grid-cols-3 gap-4">
               {heatLossPlots.map((plot, i) => (
                 <PlotlyChart key={i}
@@ -641,7 +728,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 4: Phase Lag Analysis ────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">Phase Lag Analysis</h2>
+            <h2 className="text-xl font-bold">4. Phase Lag Analysis</h2>
             <div className="grid grid-cols-2 gap-4">
               {phaseLagPlots.map((plot, i) => (
                 <PlotlyChart key={i}
@@ -657,7 +744,7 @@ export default function StatisticsPage() {
           {/* ── Section 5: Temperature Dependence ────────────────────────── */}
           {tempPlots.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-xl font-bold">Temperature Dependence</h2>
+              <h2 className="text-xl font-bold">5. Temperature Dependence</h2>
               <div className="grid grid-cols-2 gap-4">
                 {tempPlots.map((plot, i) => (
                   <PlotlyChart key={i}
@@ -674,7 +761,7 @@ export default function StatisticsPage() {
           {/* ── Section 6: Correlation Matrix ────────────────────────────── */}
           {corrPlot && (
             <section className="space-y-4">
-              <h2 className="text-xl font-bold">Correlation Matrix</h2>
+              <h2 className="text-xl font-bold">6. Correlation Matrix</h2>
               <PlotlyChart
                 data={corrPlot.data as unknown as Plotly.Data[]}
                 layout={corrPlot.layout as Partial<Plotly.Layout>}
@@ -686,7 +773,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 7: Summary Stats by Model ────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">Summary Statistics by Model</h2>
+            <h2 className="text-xl font-bold">7. Summary Statistics by Model</h2>
             <div className="overflow-x-auto">
               <table className="text-xs border border-[var(--border)] whitespace-nowrap">
                 <thead>
@@ -721,6 +808,12 @@ export default function StatisticsPage() {
                 </tbody>
               </table>
             </div>
+            <button
+              onClick={downloadStatsCsv}
+              className="mt-3 px-4 py-2 text-sm rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+            >
+              Download Statistics (CSV)
+            </button>
           </section>
         </>
       )}

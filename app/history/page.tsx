@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
 import { dbDelete } from '@/lib/dbClient'
+import PlotlyChart from '@/components/PlotlyChart'
 import type { Analysis } from '@/lib/types'
 
 function safe(v: unknown, decimals = 4): string {
@@ -155,8 +156,55 @@ export default function HistoryPage() {
                   </table>
                 </div>
 
-                {/* Right: Actions */}
+                {/* Right: Chart & Actions */}
                 <div className="space-y-4">
+                  {(() => {
+                    const alphaLabels: string[] = []
+                    const alphaValues: number[] = []
+                    const alphaColors: string[] = []
+                    if (selected.alpha_combined_raw > 0) {
+                      alphaLabels.push('\u03B1 comb (raw)')
+                      alphaValues.push(selected.alpha_combined_raw * 1e6)
+                      alphaColors.push('#3498db')
+                    }
+                    if (selected.alpha_phase_raw > 0) {
+                      alphaLabels.push('\u03B1 phase (raw)')
+                      alphaValues.push(selected.alpha_phase_raw * 1e6)
+                      alphaColors.push('#e74c3c')
+                    }
+                    if (selected.use_calibration && (selected.alpha_combined_cal ?? 0) > 0) {
+                      alphaLabels.push('\u03B1 comb (cal)')
+                      alphaValues.push(selected.alpha_combined_cal! * 1e6)
+                      alphaColors.push('#2ecc71')
+                    }
+                    if (selected.use_calibration && (selected.alpha_phase_cal ?? 0) > 0) {
+                      alphaLabels.push('\u03B1 phase (cal)')
+                      alphaValues.push(selected.alpha_phase_cal! * 1e6)
+                      alphaColors.push('#f39c12')
+                    }
+                    if (alphaLabels.length === 0) return null
+                    return (
+                      <PlotlyChart
+                        data={[{
+                          x: alphaLabels,
+                          y: alphaValues,
+                          type: 'bar' as const,
+                          marker: { color: alphaColors },
+                          text: alphaValues.map(v => v.toPrecision(4)),
+                          textposition: 'outside' as const,
+                        }] as Plotly.Data[]}
+                        layout={{
+                          title: { text: 'Thermal Diffusivity \u03B1' },
+                          height: 300,
+                          yaxis: { title: '\u03B1 (mm\u00B2/s)' },
+                          margin: { t: 40, b: 60, l: 60, r: 20 },
+                        } as Partial<Plotly.Layout>}
+                        config={{ responsive: true }}
+                        style={{ width: '100%' }}
+                      />
+                    )
+                  })()}
+
                   <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
                     <p className="text-sm text-[var(--text-muted)] mb-3">Analysis Mode: <strong>{selected.analysis_mode}</strong></p>
                     <p className="text-sm text-[var(--text-muted)]">Calibration: <strong>{selected.use_calibration ? 'Enabled' : 'Disabled'}</strong></p>

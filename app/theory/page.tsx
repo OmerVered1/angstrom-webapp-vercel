@@ -38,23 +38,81 @@ export default function TheoryPage() {
         {/* Angstrom 1861 */}
         <div className="space-y-3">
           <h3 className="text-lg font-bold">1. The Angstrom Method (1861) [1]</h3>
+
+          {/* Historical Context */}
           <p className="text-sm leading-relaxed">
-            In 1861, A.J. Angstrom introduced a dynamic technique for measuring thermal
-            diffusivity by analysing the propagation of periodic temperature waves along a
-            metallic rod. By measuring the <strong>amplitude decay</strong> and <strong>phase delay</strong> between
-            two points at distances <Latex>{'x_1'}</Latex> and <Latex>{'x_2'}</Latex>, the diffusivity
-            is extracted without needing absolute heat-flux calibration.
+            The wave method has its roots in the 19th century when Angstrom introduced a
+            novel dynamic approach to measuring thermal properties. Unlike static
+            (steady-state) methods that require absolute heat-flux calibration, the periodic
+            method extracts diffusivity from relative measurements &mdash; amplitude ratios
+            and phase delays &mdash; making it inherently self-calibrating.
           </p>
+
+          {/* Experimental Setup */}
+          <p className="text-sm leading-relaxed">
+            The original apparatus consisted of a metallic rod with one end subject to a
+            periodic temperature oscillation. Temperature was recorded at two measurement
+            stations at distances <Latex>{String.raw`x_1`}</Latex> and <Latex>{String.raw`x_2`}</Latex> from
+            the heated end.
+          </p>
+
+          {/* Governing equation */}
           <p className="text-sm leading-relaxed">
             The governing equation for a lossy rod with environmental heat loss
             (characterised by <Latex>{String.raw`\mu^2`}</Latex>):
           </p>
           <Eq>{String.raw`\frac{\partial T}{\partial t} = \alpha \frac{\partial^2 T}{\partial x^2} - \mu^2 (T - T_\infty)`}</Eq>
+
+          {/* Travelling wave solution */}
+          <p className="text-sm leading-relaxed">
+            The travelling-wave solution for the temperature field along the rod is:
+          </p>
+          <Eq>{String.raw`T(x,t) - T_\infty = A_0 \, e^{-m_A x} \cos(\omega t - m_\varphi x)`}</Eq>
+          <p className="text-sm leading-relaxed">
+            where <Latex>{String.raw`m_A`}</Latex> is the spatial attenuation constant
+            and <Latex>{String.raw`m_\varphi`}</Latex> is the spatial phase constant.
+          </p>
+
+          {/* Angstrom's Key Derivation — m_A and m_phi */}
+          <p className="text-sm leading-relaxed">
+            By measuring amplitudes <Latex>{String.raw`A_1, A_2`}</Latex> and phase
+            shift <Latex>{String.raw`\phi`}</Latex> between two stations separated
+            by <Latex>{String.raw`\Delta x = x_2 - x_1`}</Latex>, Angstrom extracted:
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Eq>{String.raw`m_A = \frac{1}{\Delta x}\ln\!\left(\frac{A_1}{A_2}\right)`}</Eq>
+            <Eq>{String.raw`m_\varphi = \frac{\phi}{\Delta x}`}</Eq>
+          </div>
+
+          {/* Complex propagation constant relationship */}
+          <p className="text-sm leading-relaxed">
+            Squaring the complex propagation constant and equating the imaginary part yields
+            the key relationship linking the attenuation and phase constants to diffusivity:
+          </p>
+          <Eq>{String.raw`\frac{\omega}{\alpha} = 2\,m_A\,m_\varphi`}</Eq>
+
+          {/* Celebrated result */}
           <p className="text-sm leading-relaxed">
             The celebrated result is that the heat-loss term cancels when both amplitude
             ratio and phase shift are combined:
           </p>
           <Eq>{String.raw`\alpha = \frac{\omega \, (\Delta x)^2}{2 \, \phi \, \ln\!\left(\dfrac{A_1}{A_2}\right)}`}</Eq>
+
+          {/* Significance note */}
+          <p className="text-sm leading-relaxed">
+            The elegance of this formula lies in the <strong>cancellation of the heat-loss
+            term</strong> <Latex>{String.raw`\mu^2`}</Latex>: because <Latex>{String.raw`\mu^2`}</Latex> affects
+            both attenuation and phase equally, combining both measurements eliminates the
+            unknown loss coefficient entirely. This makes the method robust in practical
+            settings where perfect insulation is impossible.
+          </p>
+          <p className="text-sm leading-relaxed">
+            When extended to <strong>cylindrical geometry</strong>, the asymptotic expansion of the
+            modified Bessel functions introduces a geometric correction
+            factor <Latex>{String.raw`\sqrt{r_1/r_2}`}</Latex> into the amplitude ratio, yielding the
+            radial analogue of Angstrom&apos;s formula used in this application.
+          </p>
+
           <p className="text-sm text-[var(--text-muted)]">
             Limitation: assumes a one-dimensional semi-infinite rod geometry.
           </p>
@@ -63,31 +121,99 @@ export default function TheoryPage() {
         {/* Cowan 1961-63 */}
         <div className="space-y-3">
           <h3 className="text-lg font-bold">2. Cowan&apos;s Advancements (1961&ndash;1963) [2][3][4]</h3>
+
+          {/* Flash Method introduction */}
           <p className="text-sm leading-relaxed">
-            Robert D. Cowan extended Angstrom&apos;s method to practical modern geometries.
-            His flash method gives:
+            In 1961, Parker, Jenkins, Butler &amp; Abbott introduced the <strong>flash
+            method</strong> [4] &mdash; a breakthrough technique where a short energy pulse is
+            applied to the front face of a thin disc and the temperature rise is recorded on
+            the rear face. The half-rise time <Latex>{String.raw`t_{1/2}`}</Latex> (the time for
+            the rear-face temperature to reach half its maximum) yields the diffusivity
+            directly:
           </p>
           <Eq>{String.raw`\alpha = \frac{0.1388 \, L^2}{t_{1/2}}`}</Eq>
+          <p className="text-sm leading-relaxed">
+            where <Latex>{String.raw`L`}</Latex> is the sample thickness. This elegant one-shot
+            measurement quickly became the standard method for high-temperature diffusivity
+            characterisation.
+          </p>
+
+          {/* Cowan's correction factor */}
+          <p className="text-sm leading-relaxed">
+            Cowan [2][3] recognised that the ideal adiabatic assumption in Parker&apos;s flash
+            method breaks down at high temperatures where radiative losses become significant.
+            He introduced a <strong>correction
+            factor <Latex>{String.raw`\xi`}</Latex></strong> that accounts for heat loss during
+            the measurement, modifying the flash formula to:
+          </p>
+          <Eq>{String.raw`\alpha = \frac{0.1388 \, L^2}{\xi \cdot t_{1/2}}`}</Eq>
+
+          {/* Phase lag as robust observable */}
+          <p className="text-sm leading-relaxed">
+            Cowan further extended the Angstrom wave method to periodic boundary conditions
+            applied to finite plates. A key insight was that the <strong>phase lag is a far more
+            robust observable</strong> than the amplitude ratio. Quantitatively, while amplitude
+            measurements are susceptible to 30&ndash;50% errors due to sensor calibration
+            drift, thermal contact resistance, and heat losses, phase measurements typically
+            exhibit errors of less than 5%, since phase is determined by zero-crossing timing
+            rather than signal magnitude.
+          </p>
           <p className="text-sm leading-relaxed">
             For an adiabatic plate under periodic boundary conditions, the phase-only
             formula becomes:
           </p>
           <Eq>{String.raw`\alpha_{\text{phase}} = \frac{\omega \, L^2}{\phi^2}`}</Eq>
+
+          {/* Radial phase formula */}
           <p className="text-sm leading-relaxed">
-            Cowan further bridged the analysis to <strong>cylindrical (radial) geometry</strong> by
+            When adapted to <strong>radial geometry</strong> (cylindrical samples), the
+            phase-only formula for two sensors separated by <Latex>{String.raw`\Delta r`}</Latex> becomes:
+          </p>
+          <Eq>{String.raw`\alpha_{\text{phase}} = \frac{\omega\,(\Delta r)^2}{2\,\phi^2}`}</Eq>
+
+          {/* Bridge to Radial Geometry */}
+          <h4 className="text-base font-semibold mt-4">Bridge to Radial Geometry</h4>
+          <p className="text-sm leading-relaxed">
+            Cowan bridged the analysis to <strong>cylindrical (radial) geometry</strong> by
             recognising that the radial heat equation leads to the <em>modified Bessel equation
-            of order zero</em>, yielding the cylindrical combined formula used in this application.
+            of order zero</em>:
+          </p>
+          <Eq>{String.raw`\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} - \lambda^2\theta = 0`}</Eq>
+          <p className="text-sm leading-relaxed">
+            where <Latex>{String.raw`\lambda^2 = i\omega/\alpha + \mu^2`}</Latex> is the complex
+            propagation constant. The asymptotic form of the modified Bessel
+            function <Latex>{String.raw`K_0`}</Latex> introduces the
+            geometric <Latex>{String.raw`\sqrt{r_1/r_2}`}</Latex> correction, yielding the
+            <strong> combined radial formula</strong> used in this application:
+          </p>
+          <Eq>{String.raw`\alpha_{\text{combined}} = \frac{\omega\,(\Delta r)^2}{2\,\phi\,\ln\!\left(\dfrac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)}`}</Eq>
+          <p className="text-sm leading-relaxed">
+            This formula cancels the heat-loss term and corrects for cylindrical divergence,
+            making it the most general and robust expression for measuring thermal diffusivity
+            in radial configurations.
           </p>
         </div>
 
         {/* Bibliography */}
         <div className="space-y-2">
           <h3 className="text-lg font-bold">Bibliography</h3>
-          <ol className="list-decimal list-inside text-sm space-y-1 text-[var(--text-muted)]">
-            <li>A.J. Angstrom, &ldquo;Neue Methode, das W&auml;rmeleitungsverm&ouml;gen der K&ouml;rper zu bestimmen,&rdquo; <em>Annalen der Physik</em>, 1861.</li>
-            <li>R.D. Cowan, &ldquo;Pulse method of measuring thermal diffusivity at high temperatures,&rdquo; <em>J. Applied Physics</em> 34(4), 1963.</li>
-            <li>R.D. Cowan, &ldquo;Proposed method of measuring thermal diffusivity at high temperatures,&rdquo; <em>J. Applied Physics</em> 32(7), 1961.</li>
-            <li>W.J. Parker et al., &ldquo;Flash method of determining thermal diffusivity,&rdquo; <em>J. Applied Physics</em> 32(9), 1961.</li>
+          <ol className="list-decimal list-inside text-sm space-y-2 text-[var(--text-muted)]">
+            <li>
+              A.J. Angstrom, &ldquo;Neue Methode, das W&auml;rmeleitungsverm&ouml;gen der K&ouml;rper zu bestimmen,&rdquo; <em>Annalen der Physik</em>, 1861.
+              {' '}<a href="https://doi.org/10.1002/andp.18611890404" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">doi:10.1002/andp.18611890404</a>
+            </li>
+            <li>
+              R.D. Cowan, &ldquo;Pulse method of measuring thermal diffusivity at high temperatures,&rdquo; <em>J. Applied Physics</em> 34(4), 926&ndash;927, 1963.
+              {' '}<a href="https://doi.org/10.1063/1.1729564" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">doi:10.1063/1.1729564</a>
+            </li>
+            <li>
+              R.D. Cowan, &ldquo;Proposed method of measuring thermal diffusivity at high temperatures,&rdquo; <em>J. Applied Physics</em> 32(7), 1363&ndash;1370, 1961.
+              {' '}<a href="https://doi.org/10.1063/1.1736235" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">doi:10.1063/1.1736235</a>
+            </li>
+            <li>
+              W.J. Parker, R.J. Jenkins, C.P. Butler &amp; G.L. Abbott, &ldquo;Flash method of determining thermal diffusivity, heat capacity, and thermal conductivity,&rdquo; <em>J. Applied Physics</em> 32(9), 1679&ndash;1684, 1961.
+              {' '}<a href="https://doi.org/10.1063/1.1728417" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">doi:10.1063/1.1728417</a>
+            </li>
           </ol>
         </div>
       </section>
@@ -281,11 +407,6 @@ export default function TheoryPage() {
         </div>
       </section>
 
-      {/* Footer credit */}
-      <hr className="border-[var(--border)]" />
-      <p className="text-xs text-[var(--text-muted)] text-center pb-4">
-        &copy; Omer Vered &middot; Hayun Group &middot; Ben Gurion University &middot; Built with Claude Code
-      </p>
     </div>
   )
 }

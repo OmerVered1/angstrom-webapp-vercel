@@ -95,8 +95,24 @@ export default function SummaryPage() {
   const saveEdit = async () => {
     if (editingId == null) return
     setSaving(true); setMsg('')
-    const { id: _id, created_at: _ca, graph_image: _gi, extra_data: _ed, ...updateData } = editRow as unknown as Analysis
-    const { error } = await dbUpdate('analyses', editingId, updateData as unknown as Record<string, unknown>)
+    // Convert edited string values back to proper types for numeric columns
+    const NUMERIC_KEYS = new Set([
+      'temperature_c', 'r1_mm', 'r2_mm', 'amplitude_a1', 'amplitude_a2',
+      'period_t', 'frequency_f', 'angular_freq_w', 'raw_lag_dt', 'raw_phase_phi',
+      'ln_term', 'alpha_combined_raw', 'alpha_phase_raw', 'system_lag',
+      'net_lag_dt', 'alpha_combined_cal', 'alpha_phase_cal',
+    ])
+    const cleaned: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(editRow)) {
+      if (k === 'id' || k === 'created_at' || k === 'graph_image' || k === 'extra_data' || k === 'graph_json') continue
+      if (NUMERIC_KEYS.has(k) && typeof v === 'string') {
+        const n = parseFloat(v)
+        cleaned[k] = isNaN(n) ? null : n
+      } else {
+        cleaned[k] = v
+      }
+    }
+    const { error } = await dbUpdate('analyses', editingId, cleaned)
     if (error) {
       setMsg('Save failed: ' + error)
     } else {

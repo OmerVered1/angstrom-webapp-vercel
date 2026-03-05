@@ -518,7 +518,7 @@ export default function AnalysisPage() {
               type="file"
               accept=".csv,.txt,.dat,.xls,.xlsx"
               onChange={handleC80Upload}
-              className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer"
+              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
             />
             {autoC80Time && (
               <p className="text-xs text-green-600 dark:text-green-400">Auto-detected start time: {autoC80Time}</p>
@@ -558,7 +558,7 @@ export default function AnalysisPage() {
               type="file"
               accept=".csv,.txt,.dat,.xls,.xlsx"
               onChange={handleSrcUpload}
-              className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer"
+              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
             />
             {autoSrcTime && (
               <p className="text-xs text-green-600 dark:text-green-400">Auto-detected start time: {autoSrcTime}</p>
