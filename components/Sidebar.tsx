@@ -30,16 +30,15 @@ export default function Sidebar() {
       <div className="flex items-center justify-between px-4 h-full">
         {/* Start zone: Logo + title + hamburger on mobile */}
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/">
             <Image
               src="/sidebar_icon.png"
               alt="Fire Wave Mascot"
-              width={36}
-              height={29}
-              className="object-contain"
+              width={60}
+              height={48}
+              className="object-contain h-11 w-auto"
               priority
             />
-            <span className="text-lg font-bold text-accent hidden sm:inline">Angstrom</span>
           </Link>
 
           {/* Hamburger button — mobile only */}
