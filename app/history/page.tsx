@@ -12,6 +12,64 @@ function safe(v: unknown, decimals = 4): string {
   return Number(v).toFixed(decimals)
 }
 
+/** Try to parse stored Plotly JSON and render it */
+function StoredGraph({ graphJson }: { graphJson: string }) {
+  try {
+    const parsed = JSON.parse(graphJson)
+    const data = parsed.data as Plotly.Data[] | undefined
+    const layout = parsed.layout as Partial<Plotly.Layout> | undefined
+    if (!data || !Array.isArray(data)) return null
+    return (
+      <PlotlyChart
+        data={data}
+        layout={{ ...layout, height: layout?.height ?? 450, autosize: true } as Partial<Plotly.Layout>}
+        config={{ responsive: true }}
+        style={{ width: '100%' }}
+      />
+    )
+  } catch {
+    return null
+  }
+}
+
+/** Fallback bar chart when no stored graph */
+function AlphaBarChart({ selected }: { selected: Analysis }) {
+  const labels: string[] = []
+  const values: number[] = []
+  const colors: string[] = []
+  if (selected.alpha_combined_raw > 0) {
+    labels.push('\u03B1 comb (raw)'); values.push(selected.alpha_combined_raw * 1e6); colors.push('#3498db')
+  }
+  if (selected.alpha_phase_raw > 0) {
+    labels.push('\u03B1 phase (raw)'); values.push(selected.alpha_phase_raw * 1e6); colors.push('#e74c3c')
+  }
+  if (selected.use_calibration && (selected.alpha_combined_cal ?? 0) > 0) {
+    labels.push('\u03B1 comb (cal)'); values.push(selected.alpha_combined_cal! * 1e6); colors.push('#2ecc71')
+  }
+  if (selected.use_calibration && (selected.alpha_phase_cal ?? 0) > 0) {
+    labels.push('\u03B1 phase (cal)'); values.push(selected.alpha_phase_cal! * 1e6); colors.push('#f39c12')
+  }
+  if (labels.length === 0) return null
+  return (
+    <PlotlyChart
+      data={[{
+        x: labels, y: values, type: 'bar' as const,
+        marker: { color: colors },
+        text: values.map(v => v.toPrecision(4)),
+        textposition: 'outside' as const,
+      }] as Plotly.Data[]}
+      layout={{
+        title: { text: 'Thermal Diffusivity \u03B1' },
+        height: 300,
+        yaxis: { title: '\u03B1 (mm\u00B2/s)' },
+        margin: { t: 40, b: 60, l: 60, r: 20 },
+      } as Partial<Plotly.Layout>}
+      config={{ responsive: true }}
+      style={{ width: '100%' }}
+    />
+  )
+}
+
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +138,7 @@ export default function HistoryPage() {
       ) : (
         <>
           {/* Overview table */}
+          <h2 className="text-lg font-bold">All Analyses ({analyses.length} total)</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border border-[var(--border)]">
               <thead>
@@ -109,13 +168,15 @@ export default function HistoryPage() {
             </table>
           </div>
 
+          <hr className="border-[var(--border)]" />
+
           {/* Detail view */}
           {selected && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold">Analysis Detail</h2>
+              <h2 className="text-lg font-bold">View Details</h2>
 
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Select Analysis</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">Select analysis to view</label>
                 <select value={selectedId ?? ''} onChange={e => setSelectedId(Number(e.target.value))}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   {analyses.map(a => (
@@ -124,25 +185,26 @@ export default function HistoryPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                {/* Left: Details */}
+              <div className="grid grid-cols-[2fr_1fr] gap-6">
+                {/* Left: Full Details */}
                 <div className="space-y-2">
+                  <p className="font-semibold text-sm">Full Details:</p>
                   <table className="w-full text-sm">
                     <tbody>
                       {([
                         ['Created', selected.created_at ? new Date(selected.created_at).toLocaleString() : '\u2014'],
                         ['Model', selected.model_name],
                         ['Test Date', selected.test_date],
-                        ['Temperature', `${selected.temperature_c ?? 25} \u00B0C`],
-                        ['r\u2081 / r\u2082', `${selected.r1_mm} / ${selected.r2_mm} mm`],
-                        ['Period T', `${safe(selected.period_t, 2)} s`],
-                        ['Frequency f', `${safe(selected.frequency_f, 6)} Hz`],
-                        ['Raw \u0394t', `${safe(selected.raw_lag_dt, 2)} s`],
+                        ['Radii', `r\u2081=${selected.r1_mm}mm, r\u2082=${selected.r2_mm}mm`],
+                        ['Temperature', `${selected.temperature_c ?? 25}\u00B0C`],
+                        ['Period T', `${safe(selected.period_t, 2)}s`],
+                        ['Frequency', `${safe(selected.frequency_f, 5)}Hz`],
+                        ['Raw \u0394t', `${safe(selected.raw_lag_dt, 2)}s`],
                         ['\u03B1 Combined (raw)', `${formatAlpha(selected.alpha_combined_raw)} mm\u00B2/s`],
                         ['\u03B1 Phase (raw)', `${formatAlpha(selected.alpha_phase_raw)} mm\u00B2/s`],
                         ...(selected.use_calibration ? [
-                          ['System Lag', `${safe(selected.system_lag, 1)} s`],
-                          ['Net \u0394t', `${safe(selected.net_lag_dt, 2)} s`],
+                          ['System Lag', `${safe(selected.system_lag, 1)}s`],
+                          ['Net \u0394t', `${safe(selected.net_lag_dt, 2)}s`],
                           ['\u03B1 Combined (cal)', `${formatAlpha(selected.alpha_combined_cal ?? null)} mm\u00B2/s`],
                           ['\u03B1 Phase (cal)', `${formatAlpha(selected.alpha_phase_cal ?? null)} mm\u00B2/s`],
                         ] : []),
@@ -156,63 +218,36 @@ export default function HistoryPage() {
                   </table>
                 </div>
 
-                {/* Right: Chart & Actions */}
+                {/* Right: Graph + Delete */}
                 <div className="space-y-4">
+                  {/* Render stored graph or fallback */}
                   {(() => {
-                    const alphaLabels: string[] = []
-                    const alphaValues: number[] = []
-                    const alphaColors: string[] = []
-                    if (selected.alpha_combined_raw > 0) {
-                      alphaLabels.push('\u03B1 comb (raw)')
-                      alphaValues.push(selected.alpha_combined_raw * 1e6)
-                      alphaColors.push('#3498db')
+                    const gj = selected.graph_json
+                    if (gj && typeof gj === 'string' && gj.length > 10) {
+                      // Base64 image (JPEG or PNG)
+                      if (gj.startsWith('/9j/') || gj.startsWith('iVBOR')) {
+                        return (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`data:image/${gj.startsWith('/9j/') ? 'jpeg' : 'png'};base64,${gj}`}
+                            alt="Original Result Image"
+                            className="w-full rounded-lg border border-[var(--border)]"
+                          />
+                        )
+                      }
+                      // Plotly JSON
+                      if (gj.startsWith('{')) {
+                        const rendered = <StoredGraph graphJson={gj} />
+                        if (rendered) return rendered
+                      }
                     }
-                    if (selected.alpha_phase_raw > 0) {
-                      alphaLabels.push('\u03B1 phase (raw)')
-                      alphaValues.push(selected.alpha_phase_raw * 1e6)
-                      alphaColors.push('#e74c3c')
-                    }
-                    if (selected.use_calibration && (selected.alpha_combined_cal ?? 0) > 0) {
-                      alphaLabels.push('\u03B1 comb (cal)')
-                      alphaValues.push(selected.alpha_combined_cal! * 1e6)
-                      alphaColors.push('#2ecc71')
-                    }
-                    if (selected.use_calibration && (selected.alpha_phase_cal ?? 0) > 0) {
-                      alphaLabels.push('\u03B1 phase (cal)')
-                      alphaValues.push(selected.alpha_phase_cal! * 1e6)
-                      alphaColors.push('#f39c12')
-                    }
-                    if (alphaLabels.length === 0) return null
-                    return (
-                      <PlotlyChart
-                        data={[{
-                          x: alphaLabels,
-                          y: alphaValues,
-                          type: 'bar' as const,
-                          marker: { color: alphaColors },
-                          text: alphaValues.map(v => v.toPrecision(4)),
-                          textposition: 'outside' as const,
-                        }] as Plotly.Data[]}
-                        layout={{
-                          title: { text: 'Thermal Diffusivity \u03B1' },
-                          height: 300,
-                          yaxis: { title: '\u03B1 (mm\u00B2/s)' },
-                          margin: { t: 40, b: 60, l: 60, r: 20 },
-                        } as Partial<Plotly.Layout>}
-                        config={{ responsive: true }}
-                        style={{ width: '100%' }}
-                      />
-                    )
+                    // Fallback: summary bar chart
+                    return <AlphaBarChart selected={selected} />
                   })()}
 
-                  <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
-                    <p className="text-sm text-[var(--text-muted)] mb-3">Analysis Mode: <strong>{selected.analysis_mode}</strong></p>
-                    <p className="text-sm text-[var(--text-muted)]">Calibration: <strong>{selected.use_calibration ? 'Enabled' : 'Disabled'}</strong></p>
-                  </div>
-
                   <button onClick={handleDelete} disabled={deleting}
-                    className="px-5 py-2.5 rounded-lg bg-danger text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
-                    {deleting ? 'Deleting\u2026' : 'Delete this analysis'}
+                    className="w-full px-5 py-2.5 rounded-lg bg-danger text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
+                    {deleting ? 'Deleting\u2026' : '\uD83D\uDDD1\uFE0F Delete this analysis'}
                   </button>
 
                   {msg && (

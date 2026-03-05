@@ -25,6 +25,7 @@ export interface Analysis {
   alpha_combined_cal?: number
   alpha_phase_cal?: number
   graph_image?: string
+  graph_json?: string
   extra_data?: string
 }
 

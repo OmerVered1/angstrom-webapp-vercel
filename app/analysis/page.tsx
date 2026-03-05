@@ -276,6 +276,88 @@ export default function AnalysisPage() {
     }
   }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp])
 
+  // ── Analysis plot (Step 3) ────────────────────────────────────────────────
+
+  const analysisPlot = useMemo(() => {
+    if (!synced || !results) return null
+
+    const tSrcF: number[] = [], vSrcF: number[] = []
+    for (let i = 0; i < synced.tSrc.length; i++) {
+      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) {
+        tSrcF.push(synced.tSrc[i])
+        vSrcF.push(synced.vSrc[i])
+      }
+    }
+    const tCalF: number[] = [], vCalF: number[] = []
+    for (let i = 0; i < synced.tCal.length; i++) {
+      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) {
+        tCalF.push(synced.tCal[i])
+        vCalF.push(synced.vCal[i])
+      }
+    }
+
+    const srcMean = vSrcF.reduce((a, b) => a + b, 0) / vSrcF.length
+    const calMean = vCalF.reduce((a, b) => a + b, 0) / vCalF.length
+
+    return {
+      data: [
+        {
+          x: tSrcF, y: vSrcF, name: 'Source', type: 'scatter' as const, mode: 'lines' as const,
+          line: { color: '#3498db', width: 2 },
+        },
+        {
+          x: tCalF, y: vCalF, name: 'Response', type: 'scatter' as const, mode: 'lines' as const,
+          line: { color: '#e74c3c', width: 2 }, yaxis: 'y2' as const,
+        },
+      ],
+      layout: {
+        title: `Stable Zone Analysis \u2014 \u0394t = ${results.rawLagDt.toFixed(2)}s`,
+        height: 500,
+        xaxis: { title: 'Time (s)' },
+        yaxis: { title: 'Source (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
+        yaxis2: {
+          title: 'Response (mW)', side: 'right' as const, overlaying: 'y' as const,
+          titlefont: { color: '#e74c3c' },
+        },
+        legend: { orientation: 'h' as const, y: 1.12 },
+        hovermode: 'x unified' as const,
+        shapes: [
+          {
+            type: 'line' as const, x0: selMin, x1: selMax, y0: srcMean, y1: srcMean,
+            line: { color: '#3498db', dash: 'dash' as const, width: 1 },
+          },
+          {
+            type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean,
+            yref: 'y2' as const,
+            line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
+          },
+          {
+            type: 'line' as const, x0: results.markerSrcTime, x1: results.markerSrcTime,
+            y0: 0, y1: 1, yref: 'paper' as const,
+            line: { color: '#3498db', dash: 'dashdot' as const, width: 1.5 },
+          },
+          {
+            type: 'line' as const, x0: results.markerCalTime, x1: results.markerCalTime,
+            y0: 0, y1: 1, yref: 'paper' as const,
+            line: { color: '#e74c3c', dash: 'dashdot' as const, width: 1.5 },
+          },
+        ],
+        annotations: [
+          {
+            x: results.markerSrcTime, y: 1.05, yref: 'paper' as const, text: 'Src Peak',
+            showarrow: false, font: { color: '#3498db', size: 11 },
+          },
+          {
+            x: results.markerCalTime, y: 1.05, yref: 'paper' as const, text: 'Resp Peak',
+            showarrow: false, font: { color: '#e74c3c', size: 11 },
+          },
+        ],
+        margin: { t: 60, b: 50 },
+      },
+      config: { responsive: true },
+    }
+  }, [synced, results, selMin, selMax])
+
   // ── Save to database ──────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
@@ -283,7 +365,7 @@ export default function AnalysisPage() {
     setSaving(true)
     setSaveMsg('')
     try {
-      const row = {
+      const row: Record<string, unknown> = {
         model_name: modelName,
         test_date: testDate,
         test_time: testTime,
@@ -308,6 +390,12 @@ export default function AnalysisPage() {
         alpha_combined_cal: useCalibration ? results.alphaCombinedCal : null,
         alpha_phase_cal: useCalibration ? results.alphaPhaseCal : null,
       }
+      // Save the analysis plot as Plotly JSON so History page can display it
+      if (analysisPlot) {
+        try {
+          row.graph_json = JSON.stringify({ data: analysisPlot.data, layout: analysisPlot.layout })
+        } catch { /* ignore serialization errors */ }
+      }
       const { error: dbErr } = await dbInsert('analyses', row)
       if (dbErr) throw new Error(dbErr)
       setSaveMsg('Saved successfully!')
@@ -316,7 +404,7 @@ export default function AnalysisPage() {
     } finally {
       setSaving(false)
     }
-  }, [results, modelName, testDate, testTime, temperature, analysisMode, r1, r2, useCalibration, systemLag])
+  }, [results, modelName, testDate, testTime, temperature, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -408,88 +496,6 @@ export default function AnalysisPage() {
       config: { responsive: true },
     }
   }, [synced, selMin, selMax])
-
-  // ── Analysis plot (Step 3) ────────────────────────────────────────────────
-
-  const analysisPlot = useMemo(() => {
-    if (!synced || !results) return null
-
-    const tSrcF: number[] = [], vSrcF: number[] = []
-    for (let i = 0; i < synced.tSrc.length; i++) {
-      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) {
-        tSrcF.push(synced.tSrc[i])
-        vSrcF.push(synced.vSrc[i])
-      }
-    }
-    const tCalF: number[] = [], vCalF: number[] = []
-    for (let i = 0; i < synced.tCal.length; i++) {
-      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) {
-        tCalF.push(synced.tCal[i])
-        vCalF.push(synced.vCal[i])
-      }
-    }
-
-    const srcMean = vSrcF.reduce((a, b) => a + b, 0) / vSrcF.length
-    const calMean = vCalF.reduce((a, b) => a + b, 0) / vCalF.length
-
-    return {
-      data: [
-        {
-          x: tSrcF, y: vSrcF, name: 'Source', type: 'scatter' as const, mode: 'lines' as const,
-          line: { color: '#3498db', width: 2 },
-        },
-        {
-          x: tCalF, y: vCalF, name: 'Response', type: 'scatter' as const, mode: 'lines' as const,
-          line: { color: '#e74c3c', width: 2 }, yaxis: 'y2' as const,
-        },
-      ],
-      layout: {
-        title: `Stable Zone Analysis \u2014 \u0394t = ${results.rawLagDt.toFixed(2)}s`,
-        height: 500,
-        xaxis: { title: 'Time (s)' },
-        yaxis: { title: 'Source (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
-        yaxis2: {
-          title: 'Response (mW)', side: 'right' as const, overlaying: 'y' as const,
-          titlefont: { color: '#e74c3c' },
-        },
-        legend: { orientation: 'h' as const, y: 1.12 },
-        hovermode: 'x unified' as const,
-        shapes: [
-          {
-            type: 'line' as const, x0: selMin, x1: selMax, y0: srcMean, y1: srcMean,
-            line: { color: '#3498db', dash: 'dash' as const, width: 1 },
-          },
-          {
-            type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean,
-            yref: 'y2' as const,
-            line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
-          },
-          {
-            type: 'line' as const, x0: results.markerSrcTime, x1: results.markerSrcTime,
-            y0: 0, y1: 1, yref: 'paper' as const,
-            line: { color: '#3498db', dash: 'dashdot' as const, width: 1.5 },
-          },
-          {
-            type: 'line' as const, x0: results.markerCalTime, x1: results.markerCalTime,
-            y0: 0, y1: 1, yref: 'paper' as const,
-            line: { color: '#e74c3c', dash: 'dashdot' as const, width: 1.5 },
-          },
-        ],
-        annotations: [
-          {
-            x: results.markerSrcTime, y: 1.05, yref: 'paper' as const, text: 'Src Peak',
-            showarrow: false, font: { color: '#3498db', size: 11 },
-          },
-          {
-            x: results.markerCalTime, y: 1.05, yref: 'paper' as const, text: 'Resp Peak',
-            showarrow: false, font: { color: '#e74c3c', size: 11 },
-          },
-        ],
-        margin: { t: 60, b: 50 },
-      },
-      config: { responsive: true },
-    }
-  }, [synced, results, selMin, selMax])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -587,7 +593,10 @@ export default function AnalysisPage() {
           </div>
         </div>
 
+        <hr className="border-[var(--border)]" />
+
         {/* Metadata */}
+        <h3 className="text-lg font-semibold">Experiment Metadata</h3>
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">Model / Sample Name</label>
@@ -627,7 +636,10 @@ export default function AnalysisPage() {
           </div>
         </div>
 
+        <hr className="border-[var(--border)]" />
+
         {/* Calibration & Mode */}
+        <h3 className="text-lg font-semibold">Calibration Settings</h3>
         <div className="flex items-center gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={useCalibration} onChange={e => setUseCalibration(e.target.checked)}
@@ -655,10 +667,12 @@ export default function AnalysisPage() {
           </div>
         </div>
 
+        <hr className="border-[var(--border)]" />
+
         <button
           onClick={handleLoadFiles}
           disabled={loading || !c80File || !srcFile}
-          className="px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 text-base"
         >
           {loading && step < 2 ? 'Processing\u2026' : 'Load & Process Files'}
         </button>
