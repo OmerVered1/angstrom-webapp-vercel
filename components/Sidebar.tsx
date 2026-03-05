@@ -30,13 +30,13 @@ export default function Sidebar() {
       <div className="flex items-center justify-between px-4 h-full">
         {/* Start zone: Logo + title + hamburger on mobile */}
         <div className="flex items-center gap-2">
-          <Link href="/">
+          <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-900/40">
             <Image
               src="/sidebar_icon.png"
               alt="Fire Wave Mascot"
               width={60}
               height={48}
-              className="object-contain h-11 w-auto"
+              className="object-contain h-7 w-auto"
               priority
             />
           </Link>
