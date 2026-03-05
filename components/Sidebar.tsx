@@ -30,13 +30,13 @@ export default function Sidebar() {
       <div className="flex items-center justify-between px-4 h-full">
         {/* Start zone: Logo + title + hamburger on mobile */}
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-900/40">
+          <Link href="/" className="flex items-center justify-center w-11 h-11 rounded-full bg-sky-100 dark:bg-sky-900/40">
             <Image
               src="/sidebar_icon.png"
               alt="Fire Wave Mascot"
               width={60}
               height={48}
-              className="object-contain h-7 w-auto"
+              className="object-contain h-9 w-auto"
               priority
             />
           </Link>
@@ -65,9 +65,9 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+              className={`px-3 py-1.5 rounded-full text-base font-bold transition-colors
                 ${pathname === item.href
-                  ? 'bg-accent/10 text-accent font-semibold'
+                  ? 'bg-accent/10 text-accent'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
             >
@@ -90,9 +90,9 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`block px-3 py-2 rounded-lg text-base font-medium transition-colors
+              className={`block px-3 py-2 rounded-lg text-base font-bold transition-colors
                 ${pathname === item.href
-                  ? 'bg-accent/10 text-accent font-semibold'
+                  ? 'bg-accent/10 text-accent'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
             >
