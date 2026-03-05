@@ -11,7 +11,7 @@ const navItems = [
   { href: '/summary', label: '📋 Results Summary' },
   { href: '/history', label: '📁 Results History' },
   { href: '/statistics', label: '📈 Statistics' },
-  { href: '/theory', label: '📐 Theory' },
+  { href: '/theory', label: '📐 Theory & Math' },
 ]
 
 export default function Sidebar() {

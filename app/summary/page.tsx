@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
+import { dbUpdate } from '@/lib/dbClient'
 import type { Analysis } from '@/lib/types'
 
 const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => string; editable?: boolean }[] = [
@@ -16,6 +17,8 @@ const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => 
   { key: 'amplitude_a1', label: 'A\u2081 (mW)', fmt: v => Number(v).toFixed(4), editable: true },
   { key: 'amplitude_a2', label: 'A\u2082 (mW)', fmt: v => Number(v).toFixed(4), editable: true },
   { key: 'period_t', label: 'Period (s)', fmt: v => Number(v).toFixed(2), editable: true },
+  { key: 'frequency_f', label: 'f (Hz)', fmt: v => Number(v).toFixed(6), editable: true },
+  { key: 'angular_freq_w', label: '\u03C9 (rad/s)', fmt: v => Number(v).toFixed(5), editable: true },
   { key: 'raw_lag_dt', label: '\u0394t (s)', fmt: v => Number(v).toFixed(2), editable: true },
   { key: 'raw_phase_phi', label: '\u03C6 (rad)', fmt: v => Number(v).toFixed(4), editable: true },
   { key: 'ln_term', label: 'ln term', fmt: v => Number(v).toFixed(4), editable: true },
@@ -23,6 +26,7 @@ const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => 
   { key: 'alpha_phase_raw', label: '\u03B1 phase (raw)', fmt: v => formatAlpha(Number(v)), editable: true },
   { key: 'use_calibration', label: 'Cal', fmt: v => v ? '\u2713' : '\u2717', editable: true },
   { key: 'system_lag', label: 'Lag (s)', fmt: v => v != null ? Number(v).toFixed(1) : '\u2014', editable: true },
+  { key: 'net_lag_dt', label: 'Net \u0394t (s)', fmt: v => v != null ? Number(v).toFixed(2) : '\u2014', editable: true },
   { key: 'alpha_combined_cal', label: '\u03B1 comb (cal)', fmt: v => formatAlpha(Number(v)), editable: true },
   { key: 'alpha_phase_cal', label: '\u03B1 phase (cal)', fmt: v => formatAlpha(Number(v)), editable: true },
 ]
@@ -92,9 +96,9 @@ export default function SummaryPage() {
     if (editingId == null) return
     setSaving(true); setMsg('')
     const { id: _id, created_at: _ca, graph_image: _gi, extra_data: _ed, ...updateData } = editRow as unknown as Analysis
-    const { error } = await supabase.from('analyses').update(updateData).eq('id', editingId)
+    const { error } = await dbUpdate('analyses', editingId, updateData as unknown as Record<string, unknown>)
     if (error) {
-      setMsg('Save failed: ' + error.message)
+      setMsg('Save failed: ' + error)
     } else {
       setMsg('Saved!')
       setEditingId(null)
@@ -132,6 +136,7 @@ export default function SummaryPage() {
   return (
     <div className="max-w-full mx-auto space-y-6 px-4">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCCB'} Results Summary</h1>
+      <p className="text-sm text-[var(--text-muted)]">Comprehensive overview of all saved analysis results</p>
 
       {/* Filters */}
       <div className="grid grid-cols-3 gap-4">
@@ -182,6 +187,10 @@ export default function SummaryPage() {
           {msg}
         </p>
       )}
+
+      <p className="text-xs text-[var(--text-muted)]">
+        Showing {filtered.length} of {analyses.length} results
+      </p>
 
       {loading ? (
         <p className="text-[var(--text-muted)]">Loading...</p>

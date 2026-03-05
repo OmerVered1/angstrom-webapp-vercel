@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, isConfigured } from '@/lib/supabase'
 import { parseTestDate } from '@/lib/utils'
 import MetricCard from '@/components/MetricCard'
 import type { HomeMetrics } from '@/lib/types'
@@ -15,6 +15,8 @@ export default function HomePage() {
 
   useEffect(() => {
     async function fetchMetrics() {
+      if (!isConfigured) return
+
       const { data } = await supabase
         .from('analyses')
         .select('model_name, test_date')
@@ -70,20 +72,38 @@ export default function HomePage() {
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
             <h3 className="font-bold text-lg mb-2">1️⃣ Upload Data</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Go to <strong>New Analysis</strong>, upload your C80 and Keithley data files.
+              Go to <strong>New Analysis</strong>, upload your C80 and Keithley data files, set radii and temperature.
             </p>
           </div>
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
             <h3 className="font-bold text-lg mb-2">2️⃣ Run Analysis</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Select the steady-state region on the plot, then run the analysis.
+              Select the steady-state region on the plot, run the Angstrom fit, and review the {'\u03B1'} results.
             </p>
           </div>
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
             <h3 className="font-bold text-lg mb-2">3️⃣ Save & Explore</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Save results to the database, then explore trends in Statistics.
+              Save results to the database, then explore history, summaries, and statistics across all runs.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[var(--border)]" />
+
+      {/* What's inside */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">📦 What&apos;s inside</h2>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2 text-sm">
+            <p><strong>📊 New Analysis</strong> — upload raw data files and compute {'\u03B1'}</p>
+            <p><strong>📋 Results Summary</strong> — full editable table of all saved results</p>
+            <p><strong>📁 Results History</strong> — per-analysis detail view and delete</p>
+          </div>
+          <div className="space-y-2 text-sm">
+            <p><strong>📈 Statistics</strong> — charts, correlations, and trends across runs</p>
+            <p><strong>📐 Theory</strong> — mathematical background and derivations</p>
           </div>
         </div>
       </div>

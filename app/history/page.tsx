@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
+import { dbDelete } from '@/lib/dbClient'
 import type { Analysis } from '@/lib/types'
 
 function safe(v: unknown, decimals = 4): string {
@@ -42,9 +43,9 @@ export default function HistoryPage() {
     if (!window.confirm(`Delete analysis "${selected.model_name}" (ID ${selected.id})?`)) return
     setDeleting(true)
     setMsg('')
-    const { error } = await supabase.from('analyses').delete().eq('id', selected.id)
+    const { error } = await dbDelete('analyses', selected.id)
     if (error) {
-      setMsg('Failed to delete: ' + error.message)
+      setMsg('Failed to delete: ' + error)
     } else {
       setMsg('Deleted!')
       setSelectedId(null)

@@ -18,7 +18,8 @@ import {
   type TimeUnit,
   type PowerUnit,
 } from '@/lib/analysis'
-import { supabase, isConfigured } from '@/lib/supabase'
+import { isConfigured } from '@/lib/supabase'
+import { dbInsert } from '@/lib/dbClient'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -307,8 +308,8 @@ export default function AnalysisPage() {
         alpha_combined_cal: useCalibration ? results.alphaCombinedCal : null,
         alpha_phase_cal: useCalibration ? results.alphaPhaseCal : null,
       }
-      const { error: dbErr } = await supabase.from('analyses').insert(row)
-      if (dbErr) throw dbErr
+      const { error: dbErr } = await dbInsert('analyses', row)
+      if (dbErr) throw new Error(dbErr)
       setSaveMsg('Saved successfully!')
     } catch (err: unknown) {
       setSaveMsg(err instanceof Error ? err.message : 'Save failed.')
