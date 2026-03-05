@@ -6,7 +6,7 @@ export default function Footer() {
   const { t } = useLanguage()
 
   return (
-    <footer className="mt-8 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-muted)] flex items-center justify-between">
+    <footer className="mt-8 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-muted)] flex items-center gap-2">
       <span>{t('footer.copyright')}</span>
       <a
         href="https://www.linkedin.com/in/omer-vered11/"
