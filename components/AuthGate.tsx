@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(true)
+  const { t } = useLanguage()
 
   useEffect(() => {
     const stored = sessionStorage.getItem('authenticated')
@@ -29,7 +31,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem('authenticated', 'true')
       setAuthenticated(true)
     } else {
-      setError('Incorrect password.')
+      setError(t('auth.error'))
     }
   }
 
@@ -54,12 +56,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <hr className="border-[var(--border)]" />
 
         <div>
-          <label className="block text-lg font-bold mb-2">Enter Lab Password</label>
+          <label className="block text-lg font-bold mb-2">{t('auth.title')}</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter Password"
+            placeholder={t('auth.placeholder')}
             className="w-full px-4 py-3 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
@@ -70,7 +72,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           type="submit"
           className="w-full py-3 rounded-lg bg-primary text-white font-semibold hover:opacity-90 transition-opacity"
         >
-          Enter
+          {t('auth.submit')}
         </button>
       </form>
     </div>

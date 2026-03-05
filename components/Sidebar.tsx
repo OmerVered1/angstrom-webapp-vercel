@@ -4,21 +4,24 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import ThemeToggle from './ThemeToggle'
+import LanguageToggle from './LanguageToggle'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const navItems = [
-  { href: '/', label: '🏠 Home' },
-  { href: '/analysis', label: '📊 New Analysis' },
-  { href: '/summary', label: '📋 Results Summary' },
-  { href: '/history', label: '📁 Results History' },
-  { href: '/statistics', label: '📈 Statistics' },
-  { href: '/theory', label: '📐 Theory & Math' },
+  { href: '/', icon: '🏠', key: 'sidebar.home' },
+  { href: '/analysis', icon: '📊', key: 'sidebar.analysis' },
+  { href: '/summary', icon: '📋', key: 'sidebar.summary' },
+  { href: '/history', icon: '📁', key: 'sidebar.history' },
+  { href: '/statistics', icon: '📈', key: 'sidebar.statistics' },
+  { href: '/theory', icon: '📐', key: 'sidebar.theory' },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   return (
-    <aside className="w-72 min-h-screen flex flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)] p-0">
+    <aside className="w-72 min-h-screen flex flex-col border-e border-[var(--border)] bg-[var(--bg-secondary)] p-0">
       {/* Logo */}
       <div className="flex justify-center p-2 -mx-1">
         <Image
@@ -31,16 +34,17 @@ export default function Sidebar() {
         />
       </div>
 
-      {/* Dark mode toggle */}
-      <div className="px-4 pb-2">
+      {/* Dark mode + Language toggles */}
+      <div className="px-4 pb-2 space-y-2">
         <ThemeToggle />
+        <LanguageToggle />
       </div>
 
       <hr className="border-[var(--border)]" />
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4">
-        <h2 className="text-xl font-bold mb-3">Navigation</h2>
+        <h2 className="text-xl font-bold mb-3">{t('common.navigation')}</h2>
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.href}>
@@ -52,7 +56,7 @@ export default function Sidebar() {
                     : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
               >
-                {item.label}
+                {item.icon} {t(item.key)}
               </Link>
             </li>
           ))}

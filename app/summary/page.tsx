@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
 import { dbUpdate } from '@/lib/dbClient'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Analysis } from '@/lib/types'
 
 const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => string; editable?: boolean }[] = [
@@ -32,6 +33,7 @@ const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => 
 ]
 
 export default function SummaryPage() {
+  const { t } = useLanguage()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -114,9 +116,9 @@ export default function SummaryPage() {
     }
     const { error } = await dbUpdate('analyses', editingId, cleaned)
     if (error) {
-      setMsg('Save failed: ' + error)
+      setMsg(t('common.saveFailed') + error)
     } else {
-      setMsg('Saved!')
+      setMsg(t('common.savedSuccess'))
       setEditingId(null)
       await fetchData()
     }
@@ -143,42 +145,42 @@ export default function SummaryPage() {
   if (!isConfigured) {
     return (
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCCB'} Results Summary</h1>
-        <p className="text-[var(--text-muted)]">Supabase not configured. Set environment variables to view results.</p>
+        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCCB'} {t('summary.title')}</h1>
+        <p className="text-[var(--text-muted)]">{t('common.supabaseNotConfigured')}</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-full mx-auto space-y-6 px-4">
-      <h1 className="text-3xl font-bold">{'\uD83D\uDCCB'} Results Summary</h1>
-      <p className="text-sm text-[var(--text-muted)]">Comprehensive overview of all saved analysis results</p>
+      <h1 className="text-3xl font-bold">{'\uD83D\uDCCB'} {t('summary.title')}</h1>
+      <p className="text-sm text-[var(--text-muted)]">{t('summary.subtitle')}</p>
 
       {/* Filters */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">Filter by Model</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">{t('summary.filterByModel')}</label>
           <select value={filterModel} onChange={e => setFilterModel(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-            <option>All</option>
+            <option value="All">{t('common.all')}</option>
             {uniqueModels.map(m => <option key={m}>{m}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">Filter by Mode</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">{t('summary.filterByMode')}</label>
           <select value={filterMode} onChange={e => setFilterMode(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-            <option>All</option>
+            <option value="All">{t('common.all')}</option>
             {uniqueModes.map(m => <option key={m}>{m}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">Filter by Calibration</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">{t('summary.filterByCal')}</label>
           <select value={filterCal} onChange={e => setFilterCal(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-            <option>All</option>
-            <option>Calibrated Only</option>
-            <option>Non-Calibrated Only</option>
+            <option value="All">{t('common.all')}</option>
+            <option value="Calibrated Only">{t('summary.calibratedOnly')}</option>
+            <option value="Non-Calibrated Only">{t('summary.nonCalibratedOnly')}</option>
           </select>
         </div>
       </div>
@@ -186,10 +188,10 @@ export default function SummaryPage() {
       {/* Quick stats */}
       <div className="grid grid-cols-4 gap-4">
         {([
-          ['Total Analyses', stats.total],
-          ['Unique Models', stats.models],
-          ['Avg \u03B1 (raw)', stats.avgRaw],
-          ['Avg \u03B1 (cal)', stats.avgCal],
+          [t('summary.totalAnalyses'), stats.total],
+          [t('summary.uniqueModels'), stats.models],
+          [t('summary.avgAlphaRaw'), stats.avgRaw],
+          [t('summary.avgAlphaCal'), stats.avgCal],
         ] as [string, string | number][]).map(([label, value]) => (
           <div key={label} className="rounded-lg p-4 bg-[var(--bg-secondary)] border border-[var(--border)]">
             <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
@@ -205,22 +207,22 @@ export default function SummaryPage() {
       )}
 
       <p className="text-xs text-[var(--text-muted)]">
-        Showing {filtered.length} of {analyses.length} results
+        {t('common.showing')} {filtered.length} {t('common.of')} {analyses.length} {t('common.results')}
       </p>
 
       {loading ? (
-        <p className="text-[var(--text-muted)]">Loading...</p>
+        <p className="text-[var(--text-muted)]">{t('common.loading')}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-[var(--text-muted)]">No analyses found.</p>
+        <p className="text-[var(--text-muted)]">{t('common.noData')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="text-xs border border-[var(--border)] whitespace-nowrap">
             <thead>
               <tr className="bg-[var(--bg-secondary)]">
                 {DISPLAY_COLS.map(c => (
-                  <th key={c.key} className="px-2 py-2 text-left border-b border-[var(--border)] font-semibold">{c.label}</th>
+                  <th key={c.key} className="px-2 py-2 text-start border-b border-[var(--border)] font-semibold">{c.label}</th>
                 ))}
-                <th className="px-2 py-2 border-b border-[var(--border)]">Actions</th>
+                <th className="px-2 py-2 border-b border-[var(--border)]">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -259,17 +261,17 @@ export default function SummaryPage() {
                       <div className="flex gap-1">
                         <button onClick={saveEdit} disabled={saving}
                           className="px-2 py-0.5 rounded bg-success text-white text-xs hover:opacity-90">
-                          {saving ? '...' : 'Save'}
+                          {saving ? '...' : t('common.save')}
                         </button>
                         <button onClick={cancelEdit}
                           className="px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-xs hover:opacity-80">
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     ) : (
                       <button onClick={() => startEdit(a)}
                         className="px-2 py-0.5 rounded bg-accent text-white text-xs hover:opacity-90">
-                        Edit
+                        {t('common.edit')}
                       </button>
                     )}
                   </td>
@@ -283,7 +285,7 @@ export default function SummaryPage() {
       <div className="flex gap-4">
         <button onClick={handleCSVDownload}
           className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:opacity-80">
-          Download CSV
+          {t('common.downloadCsv')}
         </button>
       </div>
     </div>

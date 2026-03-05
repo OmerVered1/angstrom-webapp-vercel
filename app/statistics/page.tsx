@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import PlotlyChart from '@/components/PlotlyChart'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Analysis } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,7 @@ function std(arr: number[]): number {
 // ---------------------------------------------------------------------------
 
 export default function StatisticsPage() {
+  const { t } = useLanguage()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -566,83 +568,83 @@ export default function StatisticsPage() {
   if (!isConfigured) {
     return (
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCC8'} Statistics</h1>
-        <p className="text-[var(--text-muted)]">Supabase not configured. Set environment variables to view statistics.</p>
+        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCC8'} {t('statistics.title')}</h1>
+        <p className="text-[var(--text-muted)]">{t('common.supabaseNotConfigured')}</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 px-4">
-      <h1 className="text-3xl font-bold">{'\uD83D\uDCC8'} Statistics</h1>
+      <h1 className="text-3xl font-bold">{'\uD83D\uDCC8'} {t('statistics.title')}</h1>
 
-      {loading ? <p className="text-[var(--text-muted)]">Loading...</p> : filtered.length === 0 ? (
-        <p className="text-[var(--text-muted)]">No analyses found. Run some analyses first.</p>
+      {loading ? <p className="text-[var(--text-muted)]">{t('common.loading')}</p> : filtered.length === 0 ? (
+        <p className="text-[var(--text-muted)]">{t('statistics.noDataRunFirst')}</p>
       ) : (
         <>
           {/* ── Filters ──────────────────────────────────────────────────── */}
           <div className="grid grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Models</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.models')}</label>
               <select multiple value={filterModels} onChange={e => setFilterModels(Array.from(e.target.selectedOptions).map(o => o.value))}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allModels.map(m => <option key={m}>{m}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">Hold Cmd/Ctrl to multi-select</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Calibration</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.calibration')}</label>
               <select value={filterCal} onChange={e => setFilterCal(e.target.value as typeof filterCal)}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-                <option>All</option><option>Calibrated</option><option>Uncalibrated</option>
+                <option value="All">{t('common.all')}</option><option value="Calibrated">{t('statistics.calibrated')}</option><option value="Uncalibrated">{t('statistics.uncalibrated')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Periods</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.periods')}</label>
               <select multiple value={filterPeriods} onChange={e => setFilterPeriods(Array.from(e.target.selectedOptions).map(o => o.value))}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allPeriods.map(p => <option key={p}>{p}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">Hold Cmd/Ctrl to multi-select</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
             </div>
             <div className="flex items-end">
-              <p className="text-sm text-[var(--text-muted)]">{filtered.length} analyses selected</p>
+              <p className="text-sm text-[var(--text-muted)]">{filtered.length} {t('common.analysesSelected')}</p>
             </div>
           </div>
 
           {/* ── Section 1: Chart Builder ──────────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">1. Chart Builder</h2>
+            <h2 className="text-xl font-bold">{t('statistics.chartBuilder')}</h2>
             <div className="grid grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Y-Axis Metric</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.yAxisMetric')}</label>
                 <select value={yMetric} onChange={e => setYMetric(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   {Y_METRICS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Chart Type</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.chartType')}</label>
                 <select value={chartType} onChange={e => setChartType(e.target.value as typeof chartType)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-                  <option value="box">Box</option><option value="violin">Violin</option>
-                  <option value="bar">Bar (mean \u00B1 std)</option><option value="scatter">Scatter</option>
+                  <option value="box">{t('statistics.box')}</option><option value="violin">{t('statistics.violin')}</option>
+                  <option value="bar">{t('statistics.barMeanStd')}</option><option value="scatter">{t('statistics.scatter')}</option>
                 </select>
               </div>
               {chartType === 'scatter' ? (
                 <>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">X-Axis</label>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.xAxis')}</label>
                     <select value={xAxis} onChange={e => setXAxis(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                       {X_OPTIONS.map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">Color by</label>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.colorBy')}</label>
                     <select value={colorBy} onChange={e => setColorBy(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
-                      <option>None</option>
+                      <option value="None">{t('common.none')}</option>
                       {GROUP_OPTIONS.map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
@@ -650,7 +652,7 @@ export default function StatisticsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">Group by</label>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.groupBy')}</label>
                     <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                       {GROUP_OPTIONS.map(o => <option key={o}>{o}</option>)}
@@ -662,7 +664,7 @@ export default function StatisticsPage() {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={showLit} onChange={e => setShowLit(e.target.checked)} className="accent-accent" />
-              <span className="text-sm">Show literature reference lines</span>
+              <span className="text-sm">{t('statistics.showLitRef')}</span>
             </label>
             {chartBuilderPlot && (
               <PlotlyChart
@@ -676,10 +678,10 @@ export default function StatisticsPage() {
 
           {/* ── Section 2: Alpha vs Period ────────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">2. {'\u03B1'} vs Period — by Model</h2>
-            <p className="text-xs text-[var(--text-muted)]">Ideal: {'\u03B1'} constant across periods. Drift indicates frequency-dependent artifacts.</p>
+            <h2 className="text-xl font-bold">{t('statistics.alphaVsPeriod')}</h2>
+            <p className="text-xs text-[var(--text-muted)]">{t('statistics.alphaVsPeriodHint')}</p>
             <div className="flex flex-wrap items-center gap-4">
-              <span className="text-sm font-medium">Series:</span>
+              <span className="text-sm font-medium">{t('statistics.series')}</span>
               {ALPHA_SERIES.map(s => (
                 <label key={s.key} className="flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -698,7 +700,7 @@ export default function StatisticsPage() {
               <span className="mx-2 text-[var(--border)]">|</span>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={showLitAlpha} onChange={e => setShowLitAlpha(e.target.checked)} className="accent-accent" />
-                <span className="text-sm">Literature reference lines</span>
+                <span className="text-sm">{t('statistics.litRefLines')}</span>
               </label>
             </div>
             {alphaVsPeriodPlot && (
@@ -713,7 +715,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 3: Heat-Loss Indicators ──────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">3. Heat-Loss Indicators</h2>
+            <h2 className="text-xl font-bold">{t('statistics.heatLossIndicators')}</h2>
             <div className="grid grid-cols-3 gap-4">
               {heatLossPlots.map((plot, i) => (
                 <PlotlyChart key={i}
@@ -728,7 +730,7 @@ export default function StatisticsPage() {
 
           {/* ── Section 4: Phase Lag Analysis ────────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">4. Phase Lag Analysis</h2>
+            <h2 className="text-xl font-bold">{t('statistics.phaseLagAnalysis')}</h2>
             <div className="grid grid-cols-2 gap-4">
               {phaseLagPlots.map((plot, i) => (
                 <PlotlyChart key={i}
@@ -744,7 +746,7 @@ export default function StatisticsPage() {
           {/* ── Section 5: Temperature Dependence ────────────────────────── */}
           {tempPlots.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-xl font-bold">5. Temperature Dependence</h2>
+              <h2 className="text-xl font-bold">{t('statistics.tempDependence')}</h2>
               <div className="grid grid-cols-2 gap-4">
                 {tempPlots.map((plot, i) => (
                   <PlotlyChart key={i}
@@ -761,7 +763,7 @@ export default function StatisticsPage() {
           {/* ── Section 6: Correlation Matrix ────────────────────────────── */}
           {corrPlot && (
             <section className="space-y-4">
-              <h2 className="text-xl font-bold">6. Correlation Matrix</h2>
+              <h2 className="text-xl font-bold">{t('statistics.correlationMatrix')}</h2>
               <PlotlyChart
                 data={corrPlot.data as unknown as Plotly.Data[]}
                 layout={corrPlot.layout as Partial<Plotly.Layout>}
@@ -773,22 +775,22 @@ export default function StatisticsPage() {
 
           {/* ── Section 7: Summary Stats by Model ────────────────────────── */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold">7. Summary Statistics by Model</h2>
+            <h2 className="text-xl font-bold">{t('statistics.summaryStatsByModel')}</h2>
             <div className="overflow-x-auto">
               <table className="text-xs border border-[var(--border)] whitespace-nowrap">
                 <thead>
                   <tr className="bg-[var(--bg-secondary)]">
-                    <th className="px-2 py-2 text-left border-b border-[var(--border)]">Model</th>
-                    <th className="px-2 py-2 text-left border-b border-[var(--border)]">N</th>
+                    <th className="px-2 py-2 text-start border-b border-[var(--border)]">{t('statistics.groupModel')}</th>
+                    <th className="px-2 py-2 text-start border-b border-[var(--border)]">N</th>
                     {['\u03B1 comb raw', '\u03B1 phase raw', '\u03B1 comb cal', '\u03B1 phase cal'].map(h => (
-                      <th key={h} colSpan={4} className="px-2 py-2 text-center border-b border-l border-[var(--border)]">{h} (mm\u00B2/s)</th>
+                      <th key={h} colSpan={4} className="px-2 py-2 text-center border-b border-s border-[var(--border)]">{h} (mm\u00B2/s)</th>
                     ))}
                   </tr>
                   <tr className="bg-[var(--bg-secondary)]">
                     <th className="px-2 py-1 border-b border-[var(--border)]" /><th className="px-2 py-1 border-b border-[var(--border)]" />
                     {Array.from({ length: 4 }).map((_, i) => (
-                      ['Mean', 'Std', 'Min', 'Max'].map(s => (
-                        <th key={`${i}-${s}`} className="px-2 py-1 text-left border-b border-[var(--border)] text-[var(--text-muted)] font-normal">{s}</th>
+                      [t('statistics.mean'), t('statistics.std'), t('statistics.min'), t('statistics.max')].map(s => (
+                        <th key={`${i}-${s}`} className="px-2 py-1 text-start border-b border-[var(--border)] text-[var(--text-muted)] font-normal">{s}</th>
                       ))
                     ))}
                   </tr>
@@ -812,7 +814,7 @@ export default function StatisticsPage() {
               onClick={downloadStatsCsv}
               className="mt-3 px-4 py-2 text-sm rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
             >
-              Download Statistics (CSV)
+              {t('statistics.downloadStatsCsv')}
             </button>
           </section>
         </>

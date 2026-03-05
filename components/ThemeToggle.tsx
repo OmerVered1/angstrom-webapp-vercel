@@ -2,9 +2,11 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const { t } = useLanguage()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
@@ -20,7 +22,7 @@ export default function ThemeToggle() {
         border-gray-400 text-gray-700"
     >
       <span className="text-lg">{isDark ? '☀️' : '🌙'}</span>
-      <span className="font-semibold text-sm">{isDark ? 'Bright Mode' : 'Dark Mode'}</span>
+      <span className="font-semibold text-sm">{isDark ? t('theme.light') : t('theme.dark')}</span>
     </button>
   )
 }

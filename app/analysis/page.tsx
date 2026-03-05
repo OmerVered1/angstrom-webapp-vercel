@@ -20,6 +20,7 @@ import {
 } from '@/lib/analysis'
 import { isConfigured } from '@/lib/supabase'
 import { dbInsert } from '@/lib/dbClient'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,6 +56,8 @@ function extractSampleName(filename: string): string | null {
 // ---------------------------------------------------------------------------
 
 export default function AnalysisPage() {
+  const { t } = useLanguage()
+
   // Step control
   const [step, setStep] = useState(1)
 
@@ -159,7 +162,7 @@ export default function AnalysisPage() {
   const handleLoadFiles = useCallback(async () => {
     setError('')
     if (!c80File || !srcFile || !c80Buffer || !srcBuffer) {
-      setError('Please upload both data files.')
+      setError(t('analysis.errUploadBoth'))
       return
     }
 
@@ -168,7 +171,7 @@ export default function AnalysisPage() {
       const c80Data = parseFile(c80Buffer, c80File.name)
       const srcData = parseFile(srcBuffer, srcFile.name)
       if (!c80Data || !srcData) {
-        setError('Could not parse one or both files. Check the file format.')
+        setError(t('analysis.errParseFailed'))
         return
       }
 
@@ -188,7 +191,7 @@ export default function AnalysisPage() {
       )
 
       if (data.tCal.length < 20 || data.tSrc.length < 20) {
-        setError('Not enough overlapping data after clock synchronisation. Check start times.')
+        setError(t('analysis.errNotEnoughOverlap'))
         return
       }
 
@@ -214,7 +217,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode])
+  }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, t])
 
   // ── Step 2 → Step 3: Run Analysis ─────────────────────────────────────────
 
@@ -251,7 +254,7 @@ export default function AnalysisPage() {
       }
 
       if (tSrcFilt.length < 10 || tCalFilt.length < 10) {
-        setError('Selected region has too few data points. Widen the selection range.')
+        setError(t('analysis.errTooFewPoints'))
         return
       }
 
@@ -270,11 +273,11 @@ export default function AnalysisPage() {
       setResults(res)
       setStep(3)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Analysis failed.')
+      setError(err instanceof Error ? err.message : t('analysis.errAnalysisFailed'))
     } finally {
       setLoading(false)
     }
-  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, t])
 
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
@@ -400,13 +403,13 @@ export default function AnalysisPage() {
       }
       const { error: dbErr } = await dbInsert('analyses', row)
       if (dbErr) throw new Error(dbErr)
-      setSaveMsg('Saved successfully!')
+      setSaveMsg(t('common.savedSuccess'))
     } catch (err: unknown) {
       setSaveMsg(err instanceof Error ? err.message : 'Save failed.')
     } finally {
       setSaving(false)
     }
-  }, [results, modelName, testDate, testTime, temperature, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot])
+  }, [results, modelName, testDate, testTime, temperature, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -505,7 +508,7 @@ export default function AnalysisPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold">{'\uD83D\uDCCA'} New Analysis</h1>
+      <h1 className="text-3xl font-bold">{'\uD83D\uDCCA'} {t('analysis.title')}</h1>
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300">
@@ -515,37 +518,37 @@ export default function AnalysisPage() {
 
       {/* ── STEP 1: File Upload & Parameters ─────────────────────────────── */}
       <section className="space-y-6">
-        <h2 className="text-xl font-bold">1. File Upload &amp; Parameters</h2>
+        <h2 className="text-xl font-bold">{t('analysis.step1Title')}</h2>
 
         {/* File uploads — two columns */}
         <div className="grid grid-cols-2 gap-6">
           {/* C80 (Response) */}
           <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] space-y-3">
-            <h3 className="font-semibold">Power Response Data (C80)</h3>
+            <h3 className="font-semibold">{t('analysis.responseData')}</h3>
             <input
               type="file"
               accept=".csv,.txt,.dat,.xls,.xlsx"
               onChange={handleC80Upload}
-              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
+              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:me-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
             />
             {autoC80Time && (
-              <p className="text-xs text-green-600 dark:text-green-400">Auto-detected start time: {autoC80Time}</p>
+              <p className="text-xs text-green-600 dark:text-green-400">{t('analysis.autoDetectedStartTime')} {autoC80Time}</p>
             )}
             {(autoDate || autoTemp !== null || autoSample) && (
               <p className="text-xs text-accent">
-                Auto-detected: {[autoSample && `Sample: ${autoSample}`, autoDate && `Date: ${autoDate}`, autoTemp !== null && `Temp: ${autoTemp}\u00B0C`].filter(Boolean).join(' \u00B7 ')}
+                {t('analysis.autoDetected')} {[autoSample && `Sample: ${autoSample}`, autoDate && `Date: ${autoDate}`, autoTemp !== null && `Temp: ${autoTemp}\u00B0C`].filter(Boolean).join(' \u00B7 ')}
               </p>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Time Unit</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.timeUnit')}</label>
                 <select value={c80TimeUnit} onChange={e => setC80TimeUnit(e.target.value as TimeUnit)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   <option>Seconds</option><option>Minutes</option><option>Hours</option><option>ms</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Power Unit</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerUnit')}</label>
                 <select value={c80PwrUnit} onChange={e => setC80PwrUnit(e.target.value as PowerUnit)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   <option>mW</option><option>Watts</option><option>uW</option>
@@ -553,7 +556,7 @@ export default function AnalysisPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Response Start Time (HH:MM:SS)</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.responseStartTime')}</label>
               <input type="text" value={tCalInput} onChange={e => setTCalInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
             </div>
@@ -561,26 +564,26 @@ export default function AnalysisPage() {
 
           {/* Keithley (Source) */}
           <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] space-y-3">
-            <h3 className="font-semibold">Power Source Data (Keithley)</h3>
+            <h3 className="font-semibold">{t('analysis.sourceData')}</h3>
             <input
               type="file"
               accept=".csv,.txt,.dat,.xls,.xlsx"
               onChange={handleSrcUpload}
-              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
+              className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:me-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
             />
             {autoSrcTime && (
-              <p className="text-xs text-green-600 dark:text-green-400">Auto-detected start time: {autoSrcTime}</p>
+              <p className="text-xs text-green-600 dark:text-green-400">{t('analysis.autoDetectedStartTime')} {autoSrcTime}</p>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Time Unit</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.timeUnit')}</label>
                 <select value={srcTimeUnit} onChange={e => setSrcTimeUnit(e.target.value as TimeUnit)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   <option>Seconds</option><option>Minutes</option><option>Hours</option><option>ms</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Power Unit</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerUnit')}</label>
                 <select value={srcPwrUnit} onChange={e => setSrcPwrUnit(e.target.value as PowerUnit)}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   <option>Watts</option><option>mW</option><option>uW</option>
@@ -588,7 +591,7 @@ export default function AnalysisPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">Source Start Time (HH:MM:SS)</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.sourceStartTime')}</label>
               <input type="text" value={tSrcInput} onChange={e => setTSrcInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
             </div>
@@ -598,25 +601,25 @@ export default function AnalysisPage() {
         <hr className="border-[var(--border)]" />
 
         {/* Metadata */}
-        <h3 className="text-lg font-semibold">Experiment Metadata</h3>
+        <h3 className="text-lg font-semibold">{t('analysis.experimentMetadata')}</h3>
         <div className="grid grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Model / Sample Name</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.modelName')}</label>
             <input type="text" value={modelName} onChange={e => setModelName(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Test Date (DD/MM/YYYY)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.testDate')}</label>
             <input type="text" value={testDate} onChange={e => setTestDate(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Test Time (HH:MM)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.testTime')}</label>
             <input type="text" value={testTime} onChange={e => setTestTime(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Temperature (\u00B0C)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.temperature')}</label>
             <input type="number" value={temperature} onChange={e => setTemperature(Number(e.target.value))}
               min={-50} max={500} step={0.1}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
@@ -625,13 +628,13 @@ export default function AnalysisPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Inner Radius r{'\u2081'} (mm)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.innerRadius')}</label>
             <input type="number" value={r1} onChange={e => setR1(Number(e.target.value))}
               min={0.1} step={0.01}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">Outer Radius r{'\u2082'} (mm)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.outerRadius')}</label>
             <input type="number" value={r2} onChange={e => setR2(Number(e.target.value))}
               min={0.1} step={0.01}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
@@ -641,30 +644,30 @@ export default function AnalysisPage() {
         <hr className="border-[var(--border)]" />
 
         {/* Calibration & Mode */}
-        <h3 className="text-lg font-semibold">Calibration Settings</h3>
+        <h3 className="text-lg font-semibold">{t('analysis.calibrationSettings')}</h3>
         <div className="flex items-center gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={useCalibration} onChange={e => setUseCalibration(e.target.checked)}
               className="w-4 h-4 rounded accent-accent" />
-            <span className="text-sm font-medium">Enable System Calibration</span>
+            <span className="text-sm font-medium">{t('analysis.enableCalibration')}</span>
           </label>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">System Lag (s)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.systemLag')}</label>
             <input type="number" value={systemLag} onChange={e => setSystemLag(Number(e.target.value))}
               disabled={!useCalibration} step={0.1}
               className="w-32 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm disabled:opacity-50" />
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">Mode:</span>
+            <span className="text-sm font-medium">{t('analysis.mode')}</span>
             <label className="flex items-center gap-1 cursor-pointer">
               <input type="radio" name="mode" value="Auto" checked={analysisMode === 'Auto'}
                 onChange={() => setAnalysisMode('Auto')} className="accent-accent" />
-              <span className="text-sm">Auto</span>
+              <span className="text-sm">{t('analysis.auto')}</span>
             </label>
             <label className="flex items-center gap-1 cursor-pointer">
               <input type="radio" name="mode" value="Manual" checked={analysisMode === 'Manual'}
                 onChange={() => setAnalysisMode('Manual')} className="accent-accent" />
-              <span className="text-sm">Manual</span>
+              <span className="text-sm">{t('analysis.manual')}</span>
             </label>
           </div>
         </div>
@@ -676,18 +679,18 @@ export default function AnalysisPage() {
           disabled={loading || !c80File || !srcFile}
           className="w-full px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 text-base"
         >
-          {loading && step < 2 ? 'Processing\u2026' : 'Load & Process Files'}
+          {loading && step < 2 ? t('analysis.processing') : t('analysis.loadProcessFiles')}
         </button>
       </section>
 
       {/* ── STEP 2: Select Analysis Region ────────────────────────────────── */}
       {step >= 2 && synced && (
         <section className="space-y-6">
-          <h2 className="text-xl font-bold">2. Select Analysis Region</h2>
+          <h2 className="text-xl font-bold">{t('analysis.step2Title')}</h2>
 
           <div className="space-y-2">
             <div className="flex items-center gap-4">
-              <label className="text-sm font-medium whitespace-nowrap">Region:</label>
+              <label className="text-sm font-medium whitespace-nowrap">{t('analysis.region')}</label>
               <input
                 type="range"
                 min={rangeMin}
@@ -708,7 +711,7 @@ export default function AnalysisPage() {
               />
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Selected: {selMin.toFixed(0)}s \u2014 {selMax.toFixed(0)}s (of {rangeMin.toFixed(0)}s \u2014 {rangeMax.toFixed(0)}s)
+              {t('analysis.selected')} {selMin.toFixed(0)}s \u2014 {selMax.toFixed(0)}s (of {rangeMin.toFixed(0)}s \u2014 {rangeMax.toFixed(0)}s)
             </p>
           </div>
 
@@ -724,23 +727,23 @@ export default function AnalysisPage() {
           {analysisMode === 'Manual' && (
             <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
               <p className="text-sm text-accent font-medium">
-                Manual Mode \u2014 Read peak times from the plot above and enter them below.
+                {t('analysis.manualModeDesc')}
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Source Peak 1 time (s)</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.srcPeak1')}</label>
                   <input type="number" value={manualPeak1} onChange={e => setManualPeak1(Number(e.target.value))}
                     step={0.1}
                     className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Source Peak 2 time (s)</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.srcPeak2')}</label>
                   <input type="number" value={manualPeak2} onChange={e => setManualPeak2(Number(e.target.value))}
                     step={0.1}
                     className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">Response Peak time (s)</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.respPeak')}</label>
                   <input type="number" value={manualResp} onChange={e => setManualResp(Number(e.target.value))}
                     step={0.1}
                     className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
@@ -754,7 +757,7 @@ export default function AnalysisPage() {
             disabled={loading}
             className="px-6 py-3 rounded-lg bg-success text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading && step === 2 ? 'Analysing\u2026' : 'Run Analysis'}
+            {loading && step === 2 ? t('analysis.analysing') : t('analysis.runAnalysis')}
           </button>
         </section>
       )}
@@ -762,26 +765,26 @@ export default function AnalysisPage() {
       {/* ── STEP 3: Results ───────────────────────────────────────────────── */}
       {step >= 3 && results && (
         <section className="space-y-6">
-          <h2 className="text-xl font-bold">3. Analysis Results</h2>
+          <h2 className="text-xl font-bold">{t('analysis.step3Title')}</h2>
 
           {/* Thermal diffusivity metrics */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
-              <p className="text-xs text-[var(--text-muted)] mb-1">{'\u03B1'} Combined (Raw)</p>
+              <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaCombinedRaw')}</p>
               <p className="text-xl font-bold">{fmtAlpha(results.alphaCombinedRaw)}</p>
             </div>
             <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
-              <p className="text-xs text-[var(--text-muted)] mb-1">{'\u03B1'} Phase (Raw)</p>
+              <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaPhaseRaw')}</p>
               <p className="text-xl font-bold">{fmtAlpha(results.alphaPhaseRaw)}</p>
             </div>
             {useCalibration && (
               <>
                 <div className="p-4 rounded-lg border border-accent/30 bg-accent/5">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">{'\u03B1'} Combined (Calibrated)</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaCombinedCal')}</p>
                   <p className="text-xl font-bold text-accent">{fmtAlpha(results.alphaCombinedCal)}</p>
                 </div>
                 <div className="p-4 rounded-lg border border-accent/30 bg-accent/5">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">{'\u03B1'} Phase (Calibrated)</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaPhaseCal')}</p>
                   <p className="text-xl font-bold text-accent">{fmtAlpha(results.alphaPhaseCal)}</p>
                 </div>
               </>
@@ -803,35 +806,35 @@ export default function AnalysisPage() {
             <table className="w-full text-sm border border-[var(--border)]">
               <thead>
                 <tr className="bg-[var(--bg-secondary)]">
-                  <th className="px-4 py-2 text-left border-b border-[var(--border)]">Parameter</th>
-                  <th className="px-4 py-2 text-left border-b border-[var(--border)]">Value</th>
+                  <th className="px-4 py-2 text-start border-b border-[var(--border)]">{t('common.parameter')}</th>
+                  <th className="px-4 py-2 text-start border-b border-[var(--border)]">{t('common.value')}</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  ['Model Name', modelName],
-                  ['Test Date', testDate],
-                  ['Temperature', `${temperature} \u00B0C`],
+                  [t('analysis.modelNameLabel'), modelName],
+                  [t('analysis.testDate'), testDate],
+                  [t('analysis.temperatureLabel'), `${temperature} \u00B0C`],
                   ['r\u2081', `${r1} mm`],
                   ['r\u2082', `${r2} mm`],
-                  ['Amplitude A\u2081', `${results.amplitudeA1.toFixed(4)} mW`],
-                  ['Amplitude A\u2082', `${results.amplitudeA2.toFixed(4)} mW`],
-                  ['Period T', `${results.periodT.toFixed(4)} s`],
-                  ['Frequency f', `${results.frequencyF.toFixed(6)} Hz`],
-                  ['Angular Freq \u03C9', `${results.angularFreqW.toFixed(6)} rad/s`],
-                  ['Raw Time Lag \u0394t', `${results.rawLagDt.toFixed(4)} s`],
-                  ['Raw Phase \u03C6', `${results.rawPhasePhi.toFixed(6)} rad`],
-                  ['ln(A\u2081\u221Ar\u2081 / A\u2082\u221Ar\u2082)', results.lnTerm.toFixed(6)],
-                  ['\u03B1 Combined (Raw)', fmtAlpha(results.alphaCombinedRaw)],
-                  ['\u03B1 Phase (Raw)', fmtAlpha(results.alphaPhaseRaw)],
-                  ['Calibration', useCalibration ? 'Enabled' : 'Disabled'],
+                  [t('analysis.amplitudeA1'), `${results.amplitudeA1.toFixed(4)} mW`],
+                  [t('analysis.amplitudeA2'), `${results.amplitudeA2.toFixed(4)} mW`],
+                  [t('analysis.periodT'), `${results.periodT.toFixed(4)} s`],
+                  [t('analysis.frequencyF'), `${results.frequencyF.toFixed(6)} Hz`],
+                  [t('analysis.angularFreq'), `${results.angularFreqW.toFixed(6)} rad/s`],
+                  [t('analysis.rawTimeLag'), `${results.rawLagDt.toFixed(4)} s`],
+                  [t('analysis.rawPhase'), `${results.rawPhasePhi.toFixed(6)} rad`],
+                  [t('analysis.lnTerm'), results.lnTerm.toFixed(6)],
+                  [t('analysis.alphaCombinedRaw'), fmtAlpha(results.alphaCombinedRaw)],
+                  [t('analysis.alphaPhaseRaw'), fmtAlpha(results.alphaPhaseRaw)],
+                  [t('analysis.calibration'), useCalibration ? t('common.enabled') : t('common.disabled')],
                   ...(useCalibration
                     ? [
-                        ['System Lag', `${systemLag.toFixed(1)} s`],
-                        ['Net Time Lag', `${results.netLagDt.toFixed(4)} s`],
-                        ['Net Phase', `${results.netPhasePhi.toFixed(6)} rad`],
-                        ['\u03B1 Combined (Cal)', fmtAlpha(results.alphaCombinedCal)],
-                        ['\u03B1 Phase (Cal)', fmtAlpha(results.alphaPhaseCal)],
+                        [t('analysis.systemLag'), `${systemLag.toFixed(1)} s`],
+                        [t('analysis.netTimeLag'), `${results.netLagDt.toFixed(4)} s`],
+                        [t('analysis.netPhase'), `${results.netPhasePhi.toFixed(6)} rad`],
+                        [t('analysis.alphaCombinedCal'), fmtAlpha(results.alphaCombinedCal)],
+                        [t('analysis.alphaPhaseCal'), fmtAlpha(results.alphaPhaseCal)],
                       ]
                     : []),
                 ].map(([param, val], i) => (
@@ -850,17 +853,17 @@ export default function AnalysisPage() {
               onClick={handleDownloadCSV}
               className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:opacity-80 transition-opacity"
             >
-              Download CSV
+              {t('common.downloadCsv')}
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !isConfigured}
               className="px-5 py-2.5 rounded-lg bg-success text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {saving ? 'Saving\u2026' : 'Save to Database'}
+              {saving ? t('analysis.saving') : t('analysis.saveToDb')}
             </button>
             {!isConfigured && (
-              <span className="text-xs text-[var(--text-muted)]">Supabase not configured \u2014 set env vars to enable saving.</span>
+              <span className="text-xs text-[var(--text-muted)]">{t('analysis.supabaseNotConfiguredSaving')}</span>
             )}
             {saveMsg && (
               <span className={`text-sm font-medium ${saveMsg.includes('success') ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>

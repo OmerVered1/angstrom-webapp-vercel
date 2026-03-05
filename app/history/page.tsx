@@ -5,6 +5,7 @@ import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
 import { dbDelete } from '@/lib/dbClient'
 import PlotlyChart from '@/components/PlotlyChart'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Analysis } from '@/lib/types'
 
 function safe(v: unknown, decimals = 4): string {
@@ -71,6 +72,7 @@ function AlphaBarChart({ selected }: { selected: Analysis }) {
 }
 
 export default function HistoryPage() {
+  const { t } = useLanguage()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -104,9 +106,9 @@ export default function HistoryPage() {
     setMsg('')
     const { error } = await dbDelete('analyses', selected.id)
     if (error) {
-      setMsg('Failed to delete: ' + error)
+      setMsg(t('history.deleteFailed') + error)
     } else {
-      setMsg('Deleted!')
+      setMsg(t('history.deleted'))
       setSelectedId(null)
       await fetchData()
     }
@@ -114,37 +116,37 @@ export default function HistoryPage() {
   }
 
   const dropdownLabel = (a: Analysis) => {
-    const cal = a.use_calibration ? `Cal (Lag: ${a.system_lag ?? 0}s)` : 'No Cal'
+    const cal = a.use_calibration ? `${t('history.calLag')} ${a.system_lag ?? 0}s)` : t('history.noCal')
     return `${a.model_name} | ${a.test_date} | ${a.analysis_mode} | ${cal}`
   }
 
   if (!isConfigured) {
     return (
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCC1'} Results History</h1>
-        <p className="text-[var(--text-muted)]">Supabase not configured. Set environment variables to view history.</p>
+        <h1 className="text-3xl font-bold mb-4">{'\uD83D\uDCC1'} {t('history.title')}</h1>
+        <p className="text-[var(--text-muted)]">{t('common.supabaseNotConfigured')}</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">{'\uD83D\uDCC1'} Results History</h1>
+      <h1 className="text-3xl font-bold">{'\uD83D\uDCC1'} {t('history.title')}</h1>
 
       {loading ? (
-        <p className="text-[var(--text-muted)]">Loading...</p>
+        <p className="text-[var(--text-muted)]">{t('common.loading')}</p>
       ) : analyses.length === 0 ? (
-        <p className="text-[var(--text-muted)]">No analyses found.</p>
+        <p className="text-[var(--text-muted)]">{t('common.noData')}</p>
       ) : (
         <>
           {/* Overview table */}
-          <h2 className="text-lg font-bold">All Analyses ({analyses.length} total)</h2>
+          <h2 className="text-lg font-bold">{t('history.allAnalyses')} ({analyses.length} {t('history.total')})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border border-[var(--border)]">
               <thead>
                 <tr className="bg-[var(--bg-secondary)]">
-                  {['ID', 'Model', 'Test Date', 'Mode', 'r\u2081', 'r\u2082', '\u03B1 comb (raw)', '\u03B1 phase (raw)', 'Cal', 'T (\u00B0C)'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left border-b border-[var(--border)] font-semibold text-xs">{h}</th>
+                  {['ID', t('history.model'), t('history.testDate'), 'Mode', 'r\u2081', 'r\u2082', '\u03B1 comb (raw)', '\u03B1 phase (raw)', 'Cal', 'T (\u00B0C)'].map(h => (
+                    <th key={h} className="px-3 py-2 text-start border-b border-[var(--border)] font-semibold text-xs">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -173,10 +175,10 @@ export default function HistoryPage() {
           {/* Detail view */}
           {selected && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold">View Details</h2>
+              <h2 className="text-lg font-bold">{t('history.viewDetails')}</h2>
 
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">Select analysis to view</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">{t('history.selectAnalysis')}</label>
                 <select value={selectedId ?? ''} onChange={e => setSelectedId(Number(e.target.value))}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   {analyses.map(a => (
@@ -188,29 +190,29 @@ export default function HistoryPage() {
               <div className="grid grid-cols-[2fr_1fr] gap-6">
                 {/* Left: Full Details */}
                 <div className="space-y-2">
-                  <p className="font-semibold text-sm">Full Details:</p>
+                  <p className="font-semibold text-sm">{t('history.fullDetails')}</p>
                   <table className="w-full text-sm">
                     <tbody>
                       {([
-                        ['Created', selected.created_at ? new Date(selected.created_at).toLocaleString() : '\u2014'],
-                        ['Model', selected.model_name],
-                        ['Test Date', selected.test_date],
-                        ['Radii', `r\u2081=${selected.r1_mm}mm, r\u2082=${selected.r2_mm}mm`],
-                        ['Temperature', `${selected.temperature_c ?? 25}\u00B0C`],
-                        ['Period T', `${safe(selected.period_t, 2)}s`],
-                        ['Frequency', `${safe(selected.frequency_f, 5)}Hz`],
-                        ['Raw \u0394t', `${safe(selected.raw_lag_dt, 2)}s`],
+                        [t('history.created'), selected.created_at ? new Date(selected.created_at).toLocaleString() : '\u2014'],
+                        [t('history.model'), selected.model_name],
+                        [t('history.testDate'), selected.test_date],
+                        [t('history.radii'), `r\u2081=${selected.r1_mm}mm, r\u2082=${selected.r2_mm}mm`],
+                        [t('history.temperature'), `${selected.temperature_c ?? 25}\u00B0C`],
+                        [t('history.periodT'), `${safe(selected.period_t, 2)}s`],
+                        [t('history.frequency'), `${safe(selected.frequency_f, 5)}Hz`],
+                        [t('history.rawDt'), `${safe(selected.raw_lag_dt, 2)}s`],
                         ['\u03B1 Combined (raw)', `${formatAlpha(selected.alpha_combined_raw)} mm\u00B2/s`],
                         ['\u03B1 Phase (raw)', `${formatAlpha(selected.alpha_phase_raw)} mm\u00B2/s`],
                         ...(selected.use_calibration ? [
-                          ['System Lag', `${safe(selected.system_lag, 1)}s`],
-                          ['Net \u0394t', `${safe(selected.net_lag_dt, 2)}s`],
+                          [t('history.systemLag'), `${safe(selected.system_lag, 1)}s`],
+                          [t('history.netDt'), `${safe(selected.net_lag_dt, 2)}s`],
                           ['\u03B1 Combined (cal)', `${formatAlpha(selected.alpha_combined_cal ?? null)} mm\u00B2/s`],
                           ['\u03B1 Phase (cal)', `${formatAlpha(selected.alpha_phase_cal ?? null)} mm\u00B2/s`],
                         ] : []),
                       ] as [string, string][]).map(([k, v]) => (
                         <tr key={k}>
-                          <td className="py-1 pr-4 text-[var(--text-muted)] font-medium">{k}</td>
+                          <td className="py-1 pe-4 text-[var(--text-muted)] font-medium">{k}</td>
                           <td className="py-1">{v}</td>
                         </tr>
                       ))}
@@ -247,11 +249,11 @@ export default function HistoryPage() {
 
                   <button onClick={handleDelete} disabled={deleting}
                     className="w-full px-5 py-2.5 rounded-lg bg-danger text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
-                    {deleting ? 'Deleting\u2026' : '\uD83D\uDDD1\uFE0F Delete Result'}
+                    {deleting ? t('history.deleting') : `\uD83D\uDDD1\uFE0F ${t('history.deleteResult')}`}
                   </button>
 
                   {msg && (
-                    <p className={`text-sm font-medium ${msg.includes('Deleted') ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                    <p className={`text-sm font-medium ${msg.includes(t('history.deleted')) ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                       {msg}
                     </p>
                   )}

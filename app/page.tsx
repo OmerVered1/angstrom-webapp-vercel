@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { parseTestDate } from '@/lib/utils'
 import MetricCard from '@/components/MetricCard'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { HomeMetrics } from '@/lib/types'
 
 export default function HomePage() {
+  const { t } = useLanguage()
   const [metrics, setMetrics] = useState<HomeMetrics>({
     totalAnalyses: 0,
     uniqueModels: 0,
@@ -46,11 +48,9 @@ export default function HomePage() {
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero */}
       <div className="text-center space-y-3">
-        <h1 className="text-4xl font-black">Radial Heat Wave Analysis Research Toolkit</h1>
+        <h1 className="text-4xl font-black">{t('home.title')}</h1>
         <p className="text-[var(--text-muted)] max-w-3xl mx-auto">
-          Dynamic Method for Characterization of Thermal Diffusivity of Insulators by
-          Modulated Analysis of Heat Waves Based on the Angstrom Method, a Thesis Research
-          by Omer Vered, BGU
+          {t('home.subtitle')}
         </p>
       </div>
 
@@ -58,33 +58,33 @@ export default function HomePage() {
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-6">
-        <MetricCard label="Total Analyses" value={metrics.totalAnalyses} />
-        <MetricCard label="Unique Models" value={metrics.uniqueModels} />
-        <MetricCard label="Latest Test Date" value={metrics.latestTestDate} />
+        <MetricCard label={t('home.totalAnalyses')} value={metrics.totalAnalyses} />
+        <MetricCard label={t('home.uniqueModels')} value={metrics.uniqueModels} />
+        <MetricCard label={t('home.latestTestDate')} value={metrics.latestTestDate} />
       </div>
 
       <hr className="border-[var(--border)]" />
 
       {/* How to use */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">🚀 How to use</h2>
+        <h2 className="text-2xl font-bold mb-4">{`🚀 ${t('home.howToUse')}`}</h2>
         <div className="grid grid-cols-3 gap-6">
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
-            <h3 className="font-bold text-lg mb-2">1️⃣ Upload Data</h3>
+            <h3 className="font-bold text-lg mb-2">{`1️⃣ ${t('home.uploadData')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Go to <strong>New Analysis</strong>, upload your C80 and Keithley data files, set radii and temperature.
+              {t('home.uploadDataDesc')}
             </p>
           </div>
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
-            <h3 className="font-bold text-lg mb-2">2️⃣ Run Analysis</h3>
+            <h3 className="font-bold text-lg mb-2">{`2️⃣ ${t('home.runAnalysis')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Select the steady-state region on the plot, run the Angstrom fit, and review the {'\u03B1'} results.
+              {t('home.runAnalysisDesc')}
             </p>
           </div>
           <div className="rounded-lg p-5 bg-[var(--bg-secondary)] border border-[var(--border)]">
-            <h3 className="font-bold text-lg mb-2">3️⃣ Save & Explore</h3>
+            <h3 className="font-bold text-lg mb-2">{`3️⃣ ${t('home.saveExplore')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Save results to the database, then explore history, summaries, and statistics across all runs.
+              {t('home.saveExploreDesc')}
             </p>
           </div>
         </div>
@@ -94,16 +94,16 @@ export default function HomePage() {
 
       {/* What's inside */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">📦 What&apos;s inside</h2>
+        <h2 className="text-2xl font-bold mb-4">{`📦 ${t('home.whatsInside')}`}</h2>
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2 text-sm">
-            <p><strong>📊 New Analysis</strong> — upload raw data files and compute {'\u03B1'}</p>
-            <p><strong>📋 Results Summary</strong> — full editable table of all saved results</p>
-            <p><strong>📁 Results History</strong> — per-analysis detail view and delete</p>
+            <p><strong>{`📊 ${t('sidebar.analysis')}`}</strong> — {t('home.insideAnalysis')}</p>
+            <p><strong>{`📋 ${t('sidebar.summary')}`}</strong> — {t('home.insideSummary')}</p>
+            <p><strong>{`📁 ${t('sidebar.history')}`}</strong> — {t('home.insideHistory')}</p>
           </div>
           <div className="space-y-2 text-sm">
-            <p><strong>📈 Statistics</strong> — charts, correlations, and trends across runs</p>
-            <p><strong>📐 Theory</strong> — mathematical background and derivations</p>
+            <p><strong>{`📈 ${t('sidebar.statistics')}`}</strong> — {t('home.insideStatistics')}</p>
+            <p><strong>{`📐 ${t('sidebar.theory')}`}</strong> — {t('home.insideTheory')}</p>
           </div>
         </div>
       </div>
