@@ -393,7 +393,9 @@ export default function AnalysisPage() {
       // Save the analysis plot as Plotly JSON so History page can display it
       if (analysisPlot) {
         try {
-          row.graph_json = JSON.stringify({ data: analysisPlot.data, layout: analysisPlot.layout })
+          const graphStr = JSON.stringify({ data: analysisPlot.data, layout: analysisPlot.layout })
+          row.graph_image = graphStr
+          row.graph_json = graphStr
         } catch { /* ignore serialization errors */ }
       }
       const { error: dbErr } = await dbInsert('analyses', row)

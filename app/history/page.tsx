@@ -222,7 +222,7 @@ export default function HistoryPage() {
                 <div className="space-y-4">
                   {/* Render stored graph or fallback */}
                   {(() => {
-                    const gj = selected.graph_json
+                    const gj = selected.graph_image || selected.graph_json
                     if (gj && typeof gj === 'string' && gj.length > 10) {
                       // Base64 image (JPEG or PNG)
                       if (gj.startsWith('/9j/') || gj.startsWith('iVBOR')) {
@@ -247,7 +247,7 @@ export default function HistoryPage() {
 
                   <button onClick={handleDelete} disabled={deleting}
                     className="w-full px-5 py-2.5 rounded-lg bg-danger text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
-                    {deleting ? 'Deleting\u2026' : '\uD83D\uDDD1\uFE0F Delete this analysis'}
+                    {deleting ? 'Deleting\u2026' : '\uD83D\uDDD1\uFE0F Delete Result'}
                   </button>
 
                   {msg && (

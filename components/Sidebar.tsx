@@ -59,12 +59,6 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <hr className="border-[var(--border)]" />
-
-      {/* Footer */}
-      <div className="px-4 py-3 text-xs text-[var(--text-muted)]">
-        © Omer Vered · Hayun Group · Ben Gurion University · Built with Claude Code
-      </div>
     </aside>
   )
 }
