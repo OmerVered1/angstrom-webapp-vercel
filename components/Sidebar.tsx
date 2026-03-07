@@ -67,7 +67,7 @@ export default function Sidebar() {
               href={item.href}
               className={`px-3 py-1.5 rounded-full text-base font-bold transition-colors
                 ${pathname === item.href
-                  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500'
+                  ? 'bg-accent/10 text-orange-500'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
             >
@@ -92,7 +92,7 @@ export default function Sidebar() {
               href={item.href}
               className={`block px-3 py-2 rounded-lg text-base font-bold transition-colors
                 ${pathname === item.href
-                  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500'
+                  ? 'bg-accent/10 text-orange-500'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
             >
