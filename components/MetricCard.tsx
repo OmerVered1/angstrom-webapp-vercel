@@ -5,7 +5,7 @@ interface MetricCardProps {
 
 export default function MetricCard({ label, value }: MetricCardProps) {
   return (
-    <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent shadow-sm">
+    <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
       <p className="text-sm text-[var(--text-muted)] mb-1">{label}</p>
       <p className="text-2xl font-black text-[var(--text)]">{value}</p>
     </div>
