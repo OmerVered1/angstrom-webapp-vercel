@@ -26,7 +26,7 @@ export default function Sidebar() {
   useEffect(() => setMenuOpen(false), [pathname])
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 h-14 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+    <header className="fixed top-0 inset-x-0 z-50 h-14 bg-[var(--bg-secondary)]/80 backdrop-blur-md border-b border-[var(--border)]">
       <div className="flex items-center justify-between px-4 h-full">
         {/* Start zone: Logo + title + hamburger on mobile */}
         <div className="flex items-center gap-2">
