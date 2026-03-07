@@ -780,8 +780,8 @@ export default function StatisticsPage() {
               <table className="text-xs border border-[var(--border)] whitespace-nowrap">
                 <thead>
                   <tr className="bg-[var(--bg-secondary)]">
-                    <th className="px-2 py-2 text-start border-b border-[var(--border)]">{t('statistics.groupModel')}</th>
-                    <th className="px-2 py-2 text-start border-b border-[var(--border)]">N</th>
+                    <th className="px-2 py-2 text-start border-b border-e border-[var(--border)]">{t('statistics.groupModel')}</th>
+                    <th className="px-2 py-2 text-start border-b border-e border-[var(--border)]">N</th>
                     {['\u03B1 comb raw', '\u03B1 phase raw', '\u03B1 comb cal', '\u03B1 phase cal'].map(h => (
                       <th key={h} colSpan={4} className="px-2 py-2 text-center border-b border-s border-[var(--border)]">{h} (mm\u00B2/s)</th>
                     ))}
@@ -790,7 +790,7 @@ export default function StatisticsPage() {
                     <th className="px-2 py-1 border-b border-[var(--border)]" /><th className="px-2 py-1 border-b border-[var(--border)]" />
                     {Array.from({ length: 4 }).map((_, i) => (
                       [t('statistics.mean'), t('statistics.std'), t('statistics.min'), t('statistics.max')].map(s => (
-                        <th key={`${i}-${s}`} className="px-2 py-1 text-start border-b border-[var(--border)] text-[var(--text-muted)] font-normal">{s}</th>
+                        <th key={`${i}-${s}`} className="px-2 py-1 text-start border-b border-e border-[var(--border)] text-[var(--text-muted)] font-normal">{s}</th>
                       ))
                     ))}
                   </tr>
@@ -798,11 +798,11 @@ export default function StatisticsPage() {
                 <tbody>
                   {summaryStats.map((s, ri) => (
                     <tr key={s.model} className={ri % 2 === 0 ? '' : 'bg-[var(--bg-secondary)]'}>
-                      <td className="px-2 py-1.5 border-b border-[var(--border)] font-medium">{s.model}</td>
-                      <td className="px-2 py-1.5 border-b border-[var(--border)]">{s.n}</td>
+                      <td className="px-2 py-1.5 border-b border-e border-[var(--border)] font-medium">{s.model}</td>
+                      <td className="px-2 py-1.5 border-b border-e border-[var(--border)]">{s.n}</td>
                       {[s.combRaw, s.phaseRaw, s.combCal, s.phaseCal].map((d, di) => (
                         [d.mean, d.std, d.min, d.max].map((v, vi) => (
-                          <td key={`${di}-${vi}`} className="px-2 py-1.5 border-b border-[var(--border)]">{v}</td>
+                          <td key={`${di}-${vi}`} className="px-2 py-1.5 border-b border-e border-[var(--border)]">{v}</td>
                         ))
                       ))}
                     </tr>

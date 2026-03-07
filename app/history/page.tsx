@@ -71,6 +71,38 @@ function AlphaBarChart({ selected }: { selected: Analysis }) {
   )
 }
 
+type SortDir = 'asc' | 'desc' | null
+
+const HISTORY_COLS: { key: keyof Analysis; label: string }[] = [
+  { key: 'id', label: 'ID' },
+  { key: 'model_name', label: 'Model' },
+  { key: 'test_date', label: 'Date' },
+  { key: 'analysis_mode', label: 'Mode' },
+  { key: 'r1_mm', label: 'r\u2081' },
+  { key: 'r2_mm', label: 'r\u2082' },
+  { key: 'alpha_combined_raw', label: '\u03B1 comb (raw)' },
+  { key: 'alpha_phase_raw', label: '\u03B1 phase (raw)' },
+  { key: 'use_calibration', label: 'Cal' },
+  { key: 'temperature_c', label: 'T (\u00B0C)' },
+]
+
+function compareCells(a: unknown, b: unknown, key: string): number {
+  if (key === 'test_date') {
+    return parseTestDate(String(a ?? '')).getTime() - parseTestDate(String(b ?? '')).getTime()
+  }
+  const na = Number(a), nb = Number(b)
+  if (!isNaN(na) && !isNaN(nb)) return na - nb
+  return String(a ?? '').localeCompare(String(b ?? ''))
+}
+
+function formatCell(a: Analysis, key: keyof Analysis): string {
+  const v = a[key]
+  if (key === 'alpha_combined_raw' || key === 'alpha_phase_raw') return formatAlpha(v as number)
+  if (key === 'use_calibration') return v ? '\u2713' : '\u2717'
+  if (key === 'temperature_c') return v != null ? String(v) : '\u2014'
+  return String(v ?? '\u2014')
+}
+
 export default function HistoryPage() {
   const { t } = useLanguage()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
@@ -78,6 +110,29 @@ export default function HistoryPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [msg, setMsg] = useState('')
+  const [sortKey, setSortKey] = useState<keyof Analysis | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>(null)
+
+  const handleSort = (key: keyof Analysis) => {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else if (sortDir === 'desc') { setSortKey(null); setSortDir(null) }
+      else setSortDir('asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sortedAnalyses = useMemo(() => {
+    if (!sortKey || !sortDir) return analyses
+    const copy = [...analyses]
+    copy.sort((a, b) => {
+      const cmp = compareCells(a[sortKey], b[sortKey], sortKey)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [analyses, sortKey, sortDir])
 
   const fetchData = useCallback(async () => {
     if (!isConfigured) { setLoading(false); return }
@@ -145,25 +200,23 @@ export default function HistoryPage() {
             <table className="w-full text-sm border border-[var(--border)]">
               <thead>
                 <tr className="bg-[var(--bg-secondary)]">
-                  {['ID', t('history.model'), t('history.testDate'), 'Mode', 'r\u2081', 'r\u2082', '\u03B1 comb (raw)', '\u03B1 phase (raw)', 'Cal', 'T (\u00B0C)'].map(h => (
-                    <th key={h} className="px-3 py-2 text-start border-b border-[var(--border)] font-semibold text-xs">{h}</th>
+                  {HISTORY_COLS.map(col => (
+                    <th key={col.key} onClick={() => handleSort(col.key)}
+                      className="px-3 py-2 text-start border-b border-e border-[var(--border)] font-semibold text-xs cursor-pointer select-none hover:bg-accent/10 transition-colors">
+                      {col.label} {sortKey === col.key ? (sortDir === 'asc' ? '\u2191' : '\u2193') : '\u21C5'}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {analyses.map((a, i) => (
+                {sortedAnalyses.map((a, i) => (
                   <tr key={a.id} className={`cursor-pointer hover:bg-accent/10 ${i % 2 !== 0 ? 'bg-[var(--bg-secondary)]' : ''} ${a.id === selectedId ? 'ring-2 ring-accent ring-inset' : ''}`}
                     onClick={() => setSelectedId(a.id)}>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.id}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs font-medium">{a.model_name}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.test_date}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.analysis_mode}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.r1_mm}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.r2_mm}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{formatAlpha(a.alpha_combined_raw)}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{formatAlpha(a.alpha_phase_raw)}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.use_calibration ? '\u2713' : '\u2717'}</td>
-                    <td className="px-3 py-1.5 border-b border-[var(--border)] text-xs">{a.temperature_c ?? '\u2014'}</td>
+                    {HISTORY_COLS.map(col => (
+                      <td key={col.key} className={`px-3 py-1.5 border-b border-e border-[var(--border)] text-xs ${col.key === 'model_name' ? 'font-medium' : ''}`}>
+                        {formatCell(a, col.key)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

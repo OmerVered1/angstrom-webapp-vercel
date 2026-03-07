@@ -32,6 +32,17 @@ const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => 
   { key: 'alpha_phase_cal', label: '\u03B1 phase (cal)', fmt: v => formatAlpha(Number(v)), editable: true },
 ]
 
+type SortDir = 'asc' | 'desc' | null
+
+function compareCells(a: unknown, b: unknown, key: string): number {
+  if (key === 'test_date') {
+    return parseTestDate(String(a ?? '')).getTime() - parseTestDate(String(b ?? '')).getTime()
+  }
+  const na = Number(a), nb = Number(b)
+  if (!isNaN(na) && !isNaN(nb)) return na - nb
+  return String(a ?? '').localeCompare(String(b ?? ''))
+}
+
 export default function SummaryPage() {
   const { t } = useLanguage()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
@@ -44,6 +55,20 @@ export default function SummaryPage() {
   const [filterModel, setFilterModel] = useState('All')
   const [filterMode, setFilterMode] = useState('All')
   const [filterCal, setFilterCal] = useState('All')
+
+  const [sortKey, setSortKey] = useState<keyof Analysis | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>(null)
+
+  const handleSort = (key: keyof Analysis) => {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else if (sortDir === 'desc') { setSortKey(null); setSortDir(null) }
+      else setSortDir('asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
 
   const fetchData = useCallback(async () => {
     if (!isConfigured) { setLoading(false); return }
@@ -75,6 +100,16 @@ export default function SummaryPage() {
     })
   }, [analyses, filterModel, filterMode, filterCal])
 
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered
+    const copy = [...filtered]
+    copy.sort((a, b) => {
+      const cmp = compareCells(a[sortKey], b[sortKey], sortKey)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [filtered, sortKey, sortDir])
+
   const stats = useMemo(() => {
     const combRaw = filtered.filter(a => a.alpha_combined_raw > 0).map(a => a.alpha_combined_raw)
     const combCal = filtered.filter(a => (a.alpha_combined_cal ?? 0) > 0).map(a => a.alpha_combined_cal!)
@@ -97,7 +132,6 @@ export default function SummaryPage() {
   const saveEdit = async () => {
     if (editingId == null) return
     setSaving(true); setMsg('')
-    // Convert edited string values back to proper types for numeric columns
     const NUMERIC_KEYS = new Set([
       'temperature_c', 'r1_mm', 'r2_mm', 'amplitude_a1', 'amplitude_a2',
       'period_t', 'frequency_f', 'angular_freq_w', 'raw_lag_dt', 'raw_phase_phi',
@@ -208,6 +242,7 @@ export default function SummaryPage() {
 
       <p className="text-xs text-[var(--text-muted)]">
         {t('common.showing')} {filtered.length} {t('common.of')} {analyses.length} {t('common.results')}
+        {sortKey && <span className="ms-2">| Sorted by <strong>{DISPLAY_COLS.find(c => c.key === sortKey)?.label}</strong> {sortDir === 'asc' ? '\u2191' : '\u2193'}</span>}
       </p>
 
       {loading ? (
@@ -216,23 +251,36 @@ export default function SummaryPage() {
         <p className="text-[var(--text-muted)]">{t('common.noData')}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="text-xs border border-[var(--border)] whitespace-nowrap">
+          <table className="text-xs border-collapse border border-[var(--border)] whitespace-nowrap">
             <thead>
               <tr className="bg-[var(--bg-secondary)]">
                 {DISPLAY_COLS.map(c => (
-                  <th key={c.key} className="px-2 py-2 text-start border-b border-[var(--border)] font-semibold">{c.label}</th>
+                  <th
+                    key={c.key}
+                    onClick={() => handleSort(c.key)}
+                    className="px-2 py-2 text-start border-b border-e border-[var(--border)] font-semibold cursor-pointer select-none hover:bg-accent/10 transition-colors"
+                  >
+                    <span className="flex items-center gap-1">
+                      {c.label}
+                      {sortKey === c.key ? (
+                        <span className="text-accent font-bold">{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>
+                      ) : (
+                        <span className="text-[var(--text-muted)] opacity-40">{'\u2195'}</span>
+                      )}
+                    </span>
+                  </th>
                 ))}
                 <th className="px-2 py-2 border-b border-[var(--border)]">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a, ri) => (
+              {sorted.map((a, ri) => (
                 <tr key={a.id} className={ri % 2 === 0 ? '' : 'bg-[var(--bg-secondary)]'}>
                   {DISPLAY_COLS.map(c => {
                     const v = a[c.key]
                     const isEditing = editingId === a.id && c.editable
                     return (
-                      <td key={c.key} className="px-2 py-1.5 border-b border-[var(--border)]">
+                      <td key={c.key} className="px-2 py-1.5 border-b border-e border-[var(--border)]">
                         {isEditing ? (
                           c.key === 'use_calibration' ? (
                             <input type="checkbox" checked={!!editRow[c.key]}
