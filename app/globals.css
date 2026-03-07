@@ -42,7 +42,7 @@ th, label, strong {
 }
 
 [dir="rtl"] {
-  font-family: "Calibri", "Segoe UI", "Arial", "Helvetica Neue", sans-serif;
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
 @keyframes float {
