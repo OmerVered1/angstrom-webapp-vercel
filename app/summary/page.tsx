@@ -193,7 +193,7 @@ export default function SummaryPage() {
           [t('summary.avgAlphaRaw'), stats.avgRaw],
           [t('summary.avgAlphaCal'), stats.avgCal],
         ] as [string, string | number][]).map(([label, value]) => (
-          <div key={label} className="rounded-lg p-4 bg-[var(--bg-secondary)] border border-[var(--border)]">
+          <div key={label} className="rounded-lg p-4 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent">
             <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
             <p className="text-lg font-bold">{value}</p>
           </div>
@@ -284,7 +284,7 @@ export default function SummaryPage() {
 
       <div className="flex gap-4">
         <button onClick={handleCSVDownload}
-          className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:opacity-80">
+          className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:border-accent hover:shadow-sm transition-all">
           {t('common.downloadCsv')}
         </button>
       </div>

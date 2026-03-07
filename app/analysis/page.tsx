@@ -523,7 +523,7 @@ export default function AnalysisPage() {
         {/* File uploads — two columns */}
         <div className="grid grid-cols-2 gap-6">
           {/* C80 (Response) */}
-          <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] space-y-3">
+          <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)] space-y-3 hover:border-accent transition-colors">
             <h3 className="font-semibold">{t('analysis.responseData')}</h3>
             <input
               type="file"
@@ -563,7 +563,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* Keithley (Source) */}
-          <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] space-y-3">
+          <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)] space-y-3 hover:border-accent transition-colors">
             <h3 className="font-semibold">{t('analysis.sourceData')}</h3>
             <input
               type="file"
@@ -769,11 +769,11 @@ export default function AnalysisPage() {
 
           {/* Thermal diffusivity metrics */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
+            <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)]">
               <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaCombinedRaw')}</p>
               <p className="text-xl font-bold">{fmtAlpha(results.alphaCombinedRaw)}</p>
             </div>
-            <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
+            <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)]">
               <p className="text-xs text-[var(--text-muted)] mb-1">{t('analysis.alphaPhaseRaw')}</p>
               <p className="text-xl font-bold">{fmtAlpha(results.alphaPhaseRaw)}</p>
             </div>
@@ -851,7 +851,7 @@ export default function AnalysisPage() {
           <div className="flex items-center gap-4 flex-wrap">
             <button
               onClick={handleDownloadCSV}
-              className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:opacity-80 transition-opacity"
+              className="px-5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] font-semibold text-sm hover:border-accent hover:shadow-sm transition-all"
             >
               {t('common.downloadCsv')}
             </button>

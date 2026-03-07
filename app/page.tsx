@@ -69,19 +69,19 @@ export default function HomePage() {
       <div>
         <h2 className="text-2xl font-bold mb-4">{`🚀 ${t('home.howToUse')}`}</h2>
         <div className="grid grid-cols-3 gap-6">
-          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
             <h3 className="font-bold text-lg mb-2">{`1️⃣ ${t('home.uploadData')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.uploadDataDesc')}
             </p>
           </div>
-          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
             <h3 className="font-bold text-lg mb-2">{`2️⃣ ${t('home.runAnalysis')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.runAnalysisDesc')}
             </p>
           </div>
-          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
+          <div className="rounded-xl p-5 bg-[var(--bg-secondary)] border border-[var(--border)] border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
             <h3 className="font-bold text-lg mb-2">{`3️⃣ ${t('home.saveExplore')}`}</h3>
             <p className="text-sm text-[var(--text-muted)]">
               {t('home.saveExploreDesc')}
