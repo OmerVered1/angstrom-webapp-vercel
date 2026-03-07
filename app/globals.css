@@ -33,6 +33,14 @@ body {
   font-family: var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
+h1, h2, h3 {
+  font-weight: 900;
+}
+
+th, label, strong {
+  font-weight: 700;
+}
+
 [dir="rtl"] {
   font-family: "Calibri", "Segoe UI", "Arial", "Helvetica Neue", sans-serif;
 }
