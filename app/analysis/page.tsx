@@ -398,7 +398,6 @@ export default function AnalysisPage() {
         try {
           const graphStr = JSON.stringify({ data: analysisPlot.data, layout: analysisPlot.layout })
           row.graph_image = graphStr
-          row.graph_json = graphStr
         } catch { /* ignore serialization errors */ }
       }
       const { error: dbErr } = await dbInsert('analyses', row)
