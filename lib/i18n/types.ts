@@ -132,6 +132,10 @@ export interface Translations {
     region: string
     selected: string
     manualModeDesc: string
+    clickToSelectPeak1: string
+    clickToSelectPeak2: string
+    clickToSelectResp: string
+    allPeaksSelected: string
     srcPeak1: string
     srcPeak2: string
     respPeak: string

@@ -140,7 +140,11 @@ export const en: Translations = {
     region: 'Region:',
     selected: 'Selected:',
     manualModeDesc:
-      'Manual Mode \u2014 Read peak times from the plot above and enter them below.',
+      'Manual Mode \u2014 Click on the chart to select peaks, or type values below.',
+    clickToSelectPeak1: 'Click on the chart to select Source Peak 1',
+    clickToSelectPeak2: 'Click on the chart to select Source Peak 2',
+    clickToSelectResp: 'Click on the chart to select Response Peak',
+    allPeaksSelected: 'All peaks selected. Click a label to re-select.',
     srcPeak1: 'Source Peak 1 time (s)',
     srcPeak2: 'Source Peak 2 time (s)',
     respPeak: 'Response Peak time (s)',

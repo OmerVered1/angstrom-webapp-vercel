@@ -140,7 +140,11 @@ export const he: Translations = {
     region: 'אזור:',
     selected: 'נבחר:',
     manualModeDesc:
-      'מצב ידני \u2014 קרא זמני שיאים מהגרף למעלה והזן אותם למטה.',
+      'מצב ידני \u2014 לחץ על הגרף לבחירת שיאים, או הקלד ערכים למטה.',
+    clickToSelectPeak1: 'לחץ על הגרף לבחירת שיא מקור 1',
+    clickToSelectPeak2: 'לחץ על הגרף לבחירת שיא מקור 2',
+    clickToSelectResp: 'לחץ על הגרף לבחירת שיא תגובה',
+    allPeaksSelected: 'כל השיאים נבחרו. לחץ על תווית לבחירה מחדש.',
     srcPeak1: 'זמן שיא מקור 1 (שנ׳)',
     srcPeak2: 'זמן שיא מקור 2 (שנ׳)',
     respPeak: 'זמן שיא תגובה (שנ׳)',
