@@ -481,30 +481,6 @@ export default function AnalysisPage() {
           line: { color: '#e74c3c', width: 1.5 },
           yaxis: 'y2' as const,
         },
-      // Draggable peak marker traces (visible on hover with tooltip)
-      ...(analysisMode === 'Manual' ? [
-        {
-          x: [manualPeak1, manualPeak1], y: [0, 1],
-          name: 'P1', type: 'scatter' as const, mode: 'markers' as const,
-          marker: { color: '#3498db', size: 14, symbol: 'line-ns', line: { width: 3, color: '#3498db' } },
-          hoverinfo: 'text' as const, text: [`P1: ${manualPeak1}s`, `P1: ${manualPeak1}s`],
-          showlegend: false, yaxis: 'y' as const,
-        },
-        {
-          x: [manualPeak2, manualPeak2], y: [0, 1],
-          name: 'P2', type: 'scatter' as const, mode: 'markers' as const,
-          marker: { color: '#2980b9', size: 14, symbol: 'line-ns', line: { width: 3, color: '#2980b9' } },
-          hoverinfo: 'text' as const, text: [`P2: ${manualPeak2}s`, `P2: ${manualPeak2}s`],
-          showlegend: false, yaxis: 'y' as const,
-        },
-        {
-          x: [manualResp, manualResp], y: [0, 1],
-          name: 'R', type: 'scatter' as const, mode: 'markers' as const,
-          marker: { color: '#e74c3c', size: 14, symbol: 'line-ns', line: { width: 3, color: '#e74c3c' } },
-          hoverinfo: 'text' as const, text: [`R: ${manualResp}s`, `R: ${manualResp}s`],
-          showlegend: false, yaxis: 'y' as const,
-        },
-      ] : []),
       ],
       layout: {
         title: 'Full Experiment Overview',
@@ -519,7 +495,7 @@ export default function AnalysisPage() {
           titlefont: { color: '#e74c3c' },
         },
         legend: { orientation: 'h' as const, y: 1.12 },
-        hovermode: 'closest' as const,
+        hovermode: 'x unified' as const,
         shapes: [
           {
             type: 'rect' as const,
