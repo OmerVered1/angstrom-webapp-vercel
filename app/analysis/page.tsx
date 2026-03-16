@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import PlotlyChart from '@/components/PlotlyChart'
 import {
   parseFile,
@@ -102,13 +102,6 @@ export default function AnalysisPage() {
   const [manualPeak1, setManualPeak1] = useState(0)
   const [manualPeak2, setManualPeak2] = useState(0)
   const [manualResp, setManualResp] = useState(0)
-  const [pickingSlot, setPickingSlot] = useState<'peak1' | 'peak2' | 'resp' | null>(null)
-
-  // Auto-start picking when entering Manual mode
-  useEffect(() => {
-    if (analysisMode === 'Manual' && step >= 2) setPickingSlot('peak1')
-    else setPickingSlot(null)
-  }, [analysisMode, step])
 
   // Step 3 — results
   const [results, setResults] = useState<AnalysisResults | null>(null)
@@ -226,20 +219,16 @@ export default function AnalysisPage() {
     }
   }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, t])
 
-  // ── Chart click handler for manual peak picking ──────────────────────────
+  // ── Handle draggable peak lines on chart ──────────────────────────────────
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = useCallback((event: any) => {
-    if (!pickingSlot || analysisMode !== 'Manual') return
-    const point = event.points[0]
-    if (!point) return
-    const xVal = Math.round(point.x as number)
-    switch (pickingSlot) {
-      case 'peak1': setManualPeak1(xVal); setPickingSlot('peak2'); break
-      case 'peak2': setManualPeak2(xVal); setPickingSlot('resp'); break
-      case 'resp':  setManualResp(xVal);  setPickingSlot(null);   break
-    }
-  }, [pickingSlot, analysisMode])
+  const handleRelayout = useCallback((update: any) => {
+    if (analysisMode !== 'Manual') return
+    // Shapes: [0] = green rect, [1] = P1, [2] = P2, [3] = R
+    if (update['shapes[1].x0'] != null) setManualPeak1(Math.round(update['shapes[1].x0']))
+    if (update['shapes[2].x0'] != null) setManualPeak2(Math.round(update['shapes[2].x0']))
+    if (update['shapes[3].x0'] != null) setManualResp(Math.round(update['shapes[3].x0']))
+  }, [analysisMode])
 
   // ── Step 2 → Step 3: Run Analysis ─────────────────────────────────────────
 
@@ -504,8 +493,7 @@ export default function AnalysisPage() {
           titlefont: { color: '#e74c3c' },
         },
         legend: { orientation: 'h' as const, y: 1.12 },
-        hovermode: (analysisMode === 'Manual' && pickingSlot) ? 'closest' as const : 'x unified' as const,
-        clickmode: 'event' as const,
+        hovermode: 'x unified' as const,
         shapes: [
           {
             type: 'rect' as const,
@@ -518,21 +506,21 @@ export default function AnalysisPage() {
             line: { color: 'rgba(46,204,113,0.5)', width: 1 },
           },
           ...(analysisMode === 'Manual' ? [
-            ...(manualPeak1 > 0 ? [{ type: 'line' as const, x0: manualPeak1, x1: manualPeak1, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#3498db', dash: 'dot' as const, width: 2 } }] : []),
-            ...(manualPeak2 > 0 ? [{ type: 'line' as const, x0: manualPeak2, x1: manualPeak2, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#2980b9', dash: 'dot' as const, width: 2 } }] : []),
-            ...(manualResp > 0 ? [{ type: 'line' as const, x0: manualResp, x1: manualResp, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#e74c3c', dash: 'dot' as const, width: 2 } }] : []),
+            { type: 'line' as const, x0: manualPeak1, x1: manualPeak1, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#3498db', dash: 'dot' as const, width: 3 } },
+            { type: 'line' as const, x0: manualPeak2, x1: manualPeak2, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#2980b9', dash: 'dot' as const, width: 3 } },
+            { type: 'line' as const, x0: manualResp, x1: manualResp, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#e74c3c', dash: 'dot' as const, width: 3 } },
           ] : []),
         ],
         annotations: analysisMode === 'Manual' ? [
-          ...(manualPeak1 > 0 ? [{ x: manualPeak1, y: 1, yref: 'paper' as const, text: 'P1', showarrow: false, font: { color: '#3498db', size: 12, weight: 700 }, yanchor: 'bottom' as const }] : []),
-          ...(manualPeak2 > 0 ? [{ x: manualPeak2, y: 1, yref: 'paper' as const, text: 'P2', showarrow: false, font: { color: '#2980b9', size: 12, weight: 700 }, yanchor: 'bottom' as const }] : []),
-          ...(manualResp > 0 ? [{ x: manualResp, y: 1, yref: 'paper' as const, text: 'R', showarrow: false, font: { color: '#e74c3c', size: 12, weight: 700 }, yanchor: 'bottom' as const }] : []),
+          { x: manualPeak1, y: 1, yref: 'paper' as const, text: 'P1', showarrow: false, font: { color: '#3498db', size: 12, weight: 700 }, yanchor: 'bottom' as const },
+          { x: manualPeak2, y: 1, yref: 'paper' as const, text: 'P2', showarrow: false, font: { color: '#2980b9', size: 12, weight: 700 }, yanchor: 'bottom' as const },
+          { x: manualResp, y: 1, yref: 'paper' as const, text: 'R', showarrow: false, font: { color: '#e74c3c', size: 12, weight: 700 }, yanchor: 'bottom' as const },
         ] : [],
         margin: { t: 60, b: 50 },
       },
-      config: { responsive: true },
+      config: { responsive: true, edits: analysisMode === 'Manual' ? { shapePosition: true } : {} },
     }
-  }, [synced, selMin, selMax, analysisMode, pickingSlot, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax, analysisMode, manualPeak1, manualPeak2, manualResp])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -752,37 +740,23 @@ export default function AnalysisPage() {
               data={overviewPlot.data as Plotly.Data[]}
               layout={overviewPlot.layout as Partial<Plotly.Layout>}
               config={overviewPlot.config}
-              style={{ width: '100%', cursor: pickingSlot ? 'crosshair' : undefined }}
-              onClick={analysisMode === 'Manual' ? handleChartClick : undefined}
+              style={{ width: '100%' }}
+              onRelayout={analysisMode === 'Manual' ? handleRelayout : undefined}
             />
           )}
 
           {analysisMode === 'Manual' && (
             <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
-              {/* Instruction banner */}
-              <div className="flex items-center gap-2 text-sm font-medium text-accent">
-                {pickingSlot === 'peak1' && <><span className="animate-pulse inline-block w-2 h-2 rounded-full bg-accent" /><span>{t('analysis.clickToSelectPeak1')}</span></>}
-                {pickingSlot === 'peak2' && <><span className="animate-pulse inline-block w-2 h-2 rounded-full bg-accent" /><span>{t('analysis.clickToSelectPeak2')}</span></>}
-                {pickingSlot === 'resp' && <><span className="animate-pulse inline-block w-2 h-2 rounded-full bg-[#e74c3c]" /><span>{t('analysis.clickToSelectResp')}</span></>}
-                {!pickingSlot && <span>{t('analysis.allPeaksSelected')}</span>}
-              </div>
-
-              {/* Peak selector cards */}
+              <p className="text-sm text-accent font-medium">
+                {t('analysis.manualModeDesc')}
+              </p>
               <div className="grid grid-cols-3 gap-4">
                 {([
-                  { slot: 'peak1' as const, label: t('analysis.srcPeak1'), value: manualPeak1, setter: setManualPeak1, color: '#3498db' },
-                  { slot: 'peak2' as const, label: t('analysis.srcPeak2'), value: manualPeak2, setter: setManualPeak2, color: '#2980b9' },
-                  { slot: 'resp' as const, label: t('analysis.respPeak'), value: manualResp, setter: setManualResp, color: '#e74c3c' },
-                ]).map(({ slot, label, value, setter, color }) => (
-                  <div
-                    key={slot}
-                    onClick={() => setPickingSlot(slot)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      pickingSlot === slot
-                        ? 'border-accent shadow-md bg-accent/10'
-                        : 'border-[var(--border)] hover:border-accent/50'
-                    }`}
-                  >
+                  { label: t('analysis.srcPeak1'), value: manualPeak1, setter: setManualPeak1, color: '#3498db' },
+                  { label: t('analysis.srcPeak2'), value: manualPeak2, setter: setManualPeak2, color: '#2980b9' },
+                  { label: t('analysis.respPeak'), value: manualResp, setter: setManualResp, color: '#e74c3c' },
+                ]).map(({ label, value, setter, color }) => (
+                  <div key={label} className="p-3 rounded-lg border border-[var(--border)]">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
                       <label className="text-xs font-medium">{label}</label>
@@ -791,7 +765,6 @@ export default function AnalysisPage() {
                       type="number"
                       value={value}
                       onChange={e => setter(Number(e.target.value))}
-                      onClick={e => e.stopPropagation()}
                       step={0.1}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
                     />
