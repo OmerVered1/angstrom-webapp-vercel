@@ -163,16 +163,17 @@ export function runAutoAnalysis(
   tMin: number,
   tMax: number,
 ): AnalysisResults {
-  const peaksSrc = findPeaks(vSrc, Math.max(Math.floor(vSrc.length / 20), 10))
-  const peaksCal = findPeaks(vCal, Math.max(Math.floor(vCal.length / 20), 10))
+  // Use large distance (~1/8 of data) to avoid detecting noise between real peaks
+  const peaksSrc = findPeaks(vSrc, Math.max(Math.floor(vSrc.length / 8), 10))
+  const peaksCal = findPeaks(vCal, Math.max(Math.floor(vCal.length / 8), 10))
 
-  // Filter out noise: only keep peaks above mean + 40% of range
+  // Filter out noise: only keep peaks above 60% of range
   const srcMin = arrayMin(vSrc), srcMax = arrayMax(vSrc)
-  const srcThreshold = srcMin + (srcMax - srcMin) * 0.4
+  const srcThreshold = srcMin + (srcMax - srcMin) * 0.6
   const strongSrc = peaksSrc.filter(i => vSrc[i] >= srcThreshold)
 
   const calMin = arrayMin(vCal), calMax = arrayMax(vCal)
-  const calThreshold = calMin + (calMax - calMin) * 0.4
+  const calThreshold = calMin + (calMax - calMin) * 0.6
   const strongCal = peaksCal.filter(i => vCal[i] >= calThreshold)
 
   if (strongSrc.length < 2 || strongCal.length < 1) {
