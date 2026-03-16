@@ -102,6 +102,7 @@ export default function AnalysisPage() {
   const [manualPeak1, setManualPeak1] = useState(0)
   const [manualPeak2, setManualPeak2] = useState(0)
   const [manualResp, setManualResp] = useState(0)
+  const [plotRevision, setPlotRevision] = useState(0)
 
   // Step 3 — results
   const [results, setResults] = useState<AnalysisResults | null>(null)
@@ -480,10 +481,35 @@ export default function AnalysisPage() {
           line: { color: '#e74c3c', width: 1.5 },
           yaxis: 'y2' as const,
         },
+      // Draggable peak marker traces (visible on hover with tooltip)
+      ...(analysisMode === 'Manual' ? [
+        {
+          x: [manualPeak1, manualPeak1], y: [0, 1],
+          name: 'P1', type: 'scatter' as const, mode: 'markers' as const,
+          marker: { color: '#3498db', size: 14, symbol: 'line-ns', line: { width: 3, color: '#3498db' } },
+          hoverinfo: 'text' as const, text: [`P1: ${manualPeak1}s`, `P1: ${manualPeak1}s`],
+          showlegend: false, yaxis: 'y' as const,
+        },
+        {
+          x: [manualPeak2, manualPeak2], y: [0, 1],
+          name: 'P2', type: 'scatter' as const, mode: 'markers' as const,
+          marker: { color: '#2980b9', size: 14, symbol: 'line-ns', line: { width: 3, color: '#2980b9' } },
+          hoverinfo: 'text' as const, text: [`P2: ${manualPeak2}s`, `P2: ${manualPeak2}s`],
+          showlegend: false, yaxis: 'y' as const,
+        },
+        {
+          x: [manualResp, manualResp], y: [0, 1],
+          name: 'R', type: 'scatter' as const, mode: 'markers' as const,
+          marker: { color: '#e74c3c', size: 14, symbol: 'line-ns', line: { width: 3, color: '#e74c3c' } },
+          hoverinfo: 'text' as const, text: [`R: ${manualResp}s`, `R: ${manualResp}s`],
+          showlegend: false, yaxis: 'y' as const,
+        },
+      ] : []),
       ],
       layout: {
         title: 'Full Experiment Overview',
         height: 420,
+        uirevision: analysisMode === 'Manual' ? `manual-${plotRevision}` : 'auto',
         xaxis: { title: 'Time (s)' },
         yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
         yaxis2: {
@@ -493,7 +519,7 @@ export default function AnalysisPage() {
           titlefont: { color: '#e74c3c' },
         },
         legend: { orientation: 'h' as const, y: 1.12 },
-        hovermode: 'x unified' as const,
+        hovermode: 'closest' as const,
         shapes: [
           {
             type: 'rect' as const,
@@ -520,7 +546,7 @@ export default function AnalysisPage() {
       },
       config: { responsive: true, edits: analysisMode === 'Manual' ? { shapePosition: true } : {} },
     }
-  }, [synced, selMin, selMax, analysisMode, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax, analysisMode, plotRevision, manualPeak1, manualPeak2, manualResp])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -764,7 +790,7 @@ export default function AnalysisPage() {
                     <input
                       type="number"
                       value={value}
-                      onChange={e => setter(Number(e.target.value))}
+                      onChange={e => { setter(Number(e.target.value)); setPlotRevision(r => r + 1) }}
                       step={0.1}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
                     />
