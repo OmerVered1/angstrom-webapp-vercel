@@ -44,6 +44,7 @@ export interface AnalysisResults {
   tMin: number
   tMax: number
   markerSrcTime: number
+  markerSrc2Time: number
   markerCalTime: number
 }
 
@@ -165,22 +166,33 @@ export function runAutoAnalysis(
   const peaksSrc = findPeaks(vSrc, Math.max(Math.floor(vSrc.length / 20), 10))
   const peaksCal = findPeaks(vCal, Math.max(Math.floor(vCal.length / 20), 10))
 
-  if (peaksSrc.length < 2 || peaksCal.length < 1) {
+  // Filter out noise: only keep peaks above mean + 40% of range
+  const srcMin = arrayMin(vSrc), srcMax = arrayMax(vSrc)
+  const srcThreshold = srcMin + (srcMax - srcMin) * 0.4
+  const strongSrc = peaksSrc.filter(i => vSrc[i] >= srcThreshold)
+
+  const calMin = arrayMin(vCal), calMax = arrayMax(vCal)
+  const calThreshold = calMin + (calMax - calMin) * 0.4
+  const strongCal = peaksCal.filter(i => vCal[i] >= calThreshold)
+
+  if (strongSrc.length < 2 || strongCal.length < 1) {
     throw new Error('Not enough peaks detected. Try manual mode or adjust the selection range.')
   }
 
   // Period from source peaks
-  const peakTimesSrc = peaksSrc.map(i => tSrc[i])
+  const peakTimesSrc = strongSrc.map(i => tSrc[i])
   const T = meanDiff(peakTimesSrc)
   const w = (2 * Math.PI) / T
 
   // Time lag between first source and first response peak
-  let tsFirst = tSrc[peaksSrc[0]]
-  let tcFirst = tCal[peaksCal[0]]
+  let tsFirst = tSrc[strongSrc[0]]
+  let tsSecond = tSrc[strongSrc[1]]
+  let tcFirst = tCal[strongCal[0]]
   let dt = tcFirst - tsFirst
 
-  if (dt < 0 && peaksCal.length > 1) {
-    tcFirst = tCal[peaksCal[1]]
+  // Response peak should be between the two source peaks
+  if (dt < 0 && strongCal.length > 1) {
+    tcFirst = tCal[strongCal[1]]
     dt = tcFirst - tsFirst
   }
 
@@ -188,7 +200,7 @@ export function runAutoAnalysis(
   const a1 = (arrayMax(vSrc) - arrayMin(vSrc)) / 2
   const a2 = (arrayMax(vCal) - arrayMin(vCal)) / 2
 
-  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tcFirst)
+  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
 }
 
 // ---------------------------------------------------------------------------
@@ -222,7 +234,7 @@ export function runManualAnalysis(
   const a1 = (arrayMax(vSrc) - arrayMin(vSrc)) / 2
   const a2 = (arrayMax(vCal) - arrayMin(vCal)) / 2
 
-  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p3.time)
+  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +251,7 @@ function calculateThermalDiffusivity(
   tMin: number,
   tMax: number,
   markerSrc: number,
+  markerSrc2: number,
   markerCal: number,
 ): AnalysisResults {
   const r1 = params.r1Mm / 1000
@@ -291,6 +304,7 @@ function calculateThermalDiffusivity(
     tMin,
     tMax,
     markerSrcTime: markerSrc,
+    markerSrc2Time: markerSrc2,
     markerCalTime: markerCal,
   }
 }

@@ -352,6 +352,11 @@ export default function AnalysisPage() {
             line: { color: '#3498db', dash: 'dashdot' as const, width: 1.5 },
           },
           {
+            type: 'line' as const, x0: results.markerSrc2Time, x1: results.markerSrc2Time,
+            y0: 0, y1: 1, yref: 'paper' as const,
+            line: { color: '#3498db', dash: 'dashdot' as const, width: 1.5 },
+          },
+          {
             type: 'line' as const, x0: results.markerCalTime, x1: results.markerCalTime,
             y0: 0, y1: 1, yref: 'paper' as const,
             line: { color: '#e74c3c', dash: 'dashdot' as const, width: 1.5 },
@@ -359,7 +364,11 @@ export default function AnalysisPage() {
         ],
         annotations: [
           {
-            x: results.markerSrcTime, y: 1.05, yref: 'paper' as const, text: 'Src Peak',
+            x: results.markerSrcTime, y: 1.05, yref: 'paper' as const, text: 'Src Peak 1',
+            showarrow: false, font: { color: '#3498db', size: 11 },
+          },
+          {
+            x: results.markerSrc2Time, y: 1.05, yref: 'paper' as const, text: 'Src Peak 2',
             showarrow: false, font: { color: '#3498db', size: 11 },
           },
           {
