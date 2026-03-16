@@ -504,7 +504,8 @@ export default function AnalysisPage() {
           titlefont: { color: '#e74c3c' },
         },
         legend: { orientation: 'h' as const, y: 1.12 },
-        hovermode: 'x unified' as const,
+        hovermode: (analysisMode === 'Manual' && pickingSlot) ? 'closest' as const : 'x unified' as const,
+        clickmode: 'event' as const,
         shapes: [
           {
             type: 'rect' as const,
@@ -531,7 +532,7 @@ export default function AnalysisPage() {
       },
       config: { responsive: true },
     }
-  }, [synced, selMin, selMax, analysisMode, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax, analysisMode, pickingSlot, manualPeak1, manualPeak2, manualResp])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
