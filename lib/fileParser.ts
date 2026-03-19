@@ -194,6 +194,8 @@ function parseKeithley(lines: string[]): ParsedData | null {
   const data: [number, number][] = []
   let timeCol: number | null = null
   let powerCol: number | null = null
+  let voltageCol: number | null = null
+  let currentCol: number | null = null
   let started = false
 
   for (const line of lines) {
@@ -207,18 +209,28 @@ function parseKeithley(lines: string[]): ParsedData | null {
       for (let i = 0; i < lower.length; i++) {
         if (/elapsed.*s\)|sec/.test(lower[i]) && timeCol === null) timeCol = i
         else if (/power.*w\)|watt/.test(lower[i])) powerCol = i
+        else if (/voltage.*v\)|volt/.test(lower[i]) && voltageCol === null) voltageCol = i
+        else if (/current.*a\)|ampere|amp/.test(lower[i]) && currentCol === null) currentCol = i
       }
-      if (timeCol !== null && powerCol !== null) {
+      if (timeCol !== null && (powerCol !== null || (voltageCol !== null && currentCol !== null))) {
         started = true
         continue
       }
       continue
     }
 
-    if (timeCol !== null && powerCol !== null && row.length > Math.max(timeCol, powerCol)) {
+    if (timeCol !== null && row.length > timeCol) {
       const t = parseFloat(row[timeCol])
-      const v = parseFloat(row[powerCol])
-      if (!isNaN(t) && !isNaN(v)) data.push([t, v])
+      if (isNaN(t)) continue
+
+      // Try power column first; fall back to V × I
+      let p = powerCol !== null ? parseFloat(row[powerCol]) : NaN
+      if (isNaN(p) && voltageCol !== null && currentCol !== null) {
+        const v = parseFloat(row[voltageCol])
+        const i = parseFloat(row[currentCol])
+        if (!isNaN(v) && !isNaN(i)) p = v * i
+      }
+      if (!isNaN(p)) data.push([t, p])
     }
   }
 
