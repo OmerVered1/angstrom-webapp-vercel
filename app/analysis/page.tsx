@@ -341,26 +341,26 @@ export default function AnalysisPage() {
             type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean,
             line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
           },
-          // Amplitude envelope — Source: mean ± A1
+          // Mean peak/trough levels — Source
           {
             type: 'line' as const, x0: selMin, x1: selMax,
-            y0: srcMean + results.amplitudeA1, y1: srcMean + results.amplitudeA1,
+            y0: results.meanPeakSrc, y1: results.meanPeakSrc,
             line: { color: '#27ae60', dash: 'dot' as const, width: 2 },
           },
           {
             type: 'line' as const, x0: selMin, x1: selMax,
-            y0: srcMean - results.amplitudeA1, y1: srcMean - results.amplitudeA1,
+            y0: results.meanTroughSrc, y1: results.meanTroughSrc,
             line: { color: '#27ae60', dash: 'dot' as const, width: 2 },
           },
-          // Amplitude envelope — Response: mean ± A2
+          // Mean peak/trough levels — Response
           {
             type: 'line' as const, x0: selMin, x1: selMax,
-            y0: calMean + results.amplitudeA2, y1: calMean + results.amplitudeA2,
+            y0: results.meanPeakCal, y1: results.meanPeakCal,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
           {
             type: 'line' as const, x0: selMin, x1: selMax,
-            y0: calMean - results.amplitudeA2, y1: calMean - results.amplitudeA2,
+            y0: results.meanTroughCal, y1: results.meanTroughCal,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
           {
@@ -392,30 +392,30 @@ export default function AnalysisPage() {
             x: results.markerCalTime, y: 1.05, yref: 'paper' as const, text: 'Resp Peak',
             showarrow: false, font: { color: '#e74c3c', size: 11 },
           },
-          // Amplitude envelope labels — Source (green)
+          // Amplitude level labels — Source (green)
           {
-            x: selMin, y: srcMean + results.amplitudeA1, xanchor: 'left' as const,
-            text: `  A1 = ${results.amplitudeA1.toFixed(1)} mW`,
-            showarrow: false, font: { color: '#27ae60', size: 11, family: 'monospace' },
+            x: selMin, y: results.meanPeakSrc, xanchor: 'left' as const,
+            text: `  Src peak: ${results.meanPeakSrc.toFixed(1)}`,
+            showarrow: false, font: { color: '#27ae60', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
           {
-            x: selMin, y: srcMean - results.amplitudeA1, xanchor: 'left' as const,
-            text: `  −A1`,
-            showarrow: false, font: { color: '#27ae60', size: 11, family: 'monospace' },
+            x: selMin, y: results.meanTroughSrc, xanchor: 'left' as const,
+            text: `  Src trough: ${results.meanTroughSrc.toFixed(1)}`,
+            showarrow: false, font: { color: '#27ae60', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
-          // Amplitude envelope labels — Response (orange)
+          // Amplitude level labels — Response (orange)
           {
-            x: selMax, y: calMean + results.amplitudeA2, xanchor: 'right' as const,
-            text: `A2 = ${results.amplitudeA2.toFixed(1)} mW  `,
-            showarrow: false, font: { color: '#f39c12', size: 11, family: 'monospace' },
+            x: selMax, y: results.meanPeakCal, xanchor: 'right' as const,
+            text: `Resp peak: ${results.meanPeakCal.toFixed(1)}  `,
+            showarrow: false, font: { color: '#f39c12', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
           {
-            x: selMax, y: calMean - results.amplitudeA2, xanchor: 'right' as const,
-            text: `−A2  `,
-            showarrow: false, font: { color: '#f39c12', size: 11, family: 'monospace' },
+            x: selMax, y: results.meanTroughCal, xanchor: 'right' as const,
+            text: `Resp trough: ${results.meanTroughCal.toFixed(1)}  `,
+            showarrow: false, font: { color: '#f39c12', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
         ],
