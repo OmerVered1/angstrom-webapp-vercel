@@ -75,6 +75,83 @@ export function autoDetectPeaks(
  * Snap a user-clicked time coordinate to the nearest actual peak within a window.
  * Returns { time, value, index }.
  */
+/**
+ * Find local minima (troughs) in `values` separated by at least `distance` samples.
+ * Works by negating the signal and finding peaks.
+ */
+export function findTroughs(values: number[], distance: number): number[] {
+  const negated = values.map(v => -v)
+  return findPeaks(negated, distance)
+}
+
+/**
+ * Compute per-cycle amplitude by averaging (peak - adjacent trough) / 2
+ * across detected cycles. Falls back to (max - min) / 2 if detection fails.
+ */
+export function computeCycleAmplitude(
+  values: number[],
+  peakIndices: number[],
+): number {
+  if (peakIndices.length < 1) {
+    return (arrayMaxPD(values) - arrayMinPD(values)) / 2
+  }
+
+  // Find troughs between consecutive peaks, and before first / after last peak
+  const amplitudes: number[] = []
+
+  for (const pi of peakIndices) {
+    // Look for the minimum between this peak and its neighbours
+    // Search left: from previous peak (or start) to this peak
+    const leftBound = peakIndices.indexOf(pi) > 0
+      ? peakIndices[peakIndices.indexOf(pi) - 1]
+      : 0
+    // Search right: from this peak to next peak (or end)
+    const idx = peakIndices.indexOf(pi)
+    const rightBound = idx < peakIndices.length - 1
+      ? peakIndices[idx + 1]
+      : values.length - 1
+
+    // Find min on left side
+    let leftMin = values[pi]
+    for (let i = leftBound; i < pi; i++) {
+      if (values[i] < leftMin) leftMin = values[i]
+    }
+
+    // Find min on right side
+    let rightMin = values[pi]
+    for (let i = pi + 1; i <= rightBound; i++) {
+      if (values[i] < rightMin) rightMin = values[i]
+    }
+
+    // Use the average of left and right trough depths
+    const troughAvg = (leftMin + rightMin) / 2
+    amplitudes.push((values[pi] - troughAvg) / 2)
+  }
+
+  if (amplitudes.length === 0) {
+    return (arrayMaxPD(values) - arrayMinPD(values)) / 2
+  }
+
+  // Return the median amplitude to be robust against outliers
+  amplitudes.sort((a, b) => a - b)
+  const mid = Math.floor(amplitudes.length / 2)
+  return amplitudes.length % 2 === 1
+    ? amplitudes[mid]
+    : (amplitudes[mid - 1] + amplitudes[mid]) / 2
+}
+
+function arrayMaxPD(a: number[]): number {
+  let v = -Infinity
+  for (const x of a) if (x > v) v = x
+  return v
+}
+
+function arrayMinPD(a: number[]): number {
+  let v = Infinity
+  for (const x of a) if (x < v) v = x
+  return v
+}
+
 export function snapToPeak(
   clickTime: number,
   time: number[],

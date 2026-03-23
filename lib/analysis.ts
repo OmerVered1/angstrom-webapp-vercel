@@ -3,7 +3,7 @@
  * Ported from analysis.py — all math runs client-side.
  */
 
-import { findPeaks, snapToPeak } from './peakDetection'
+import { findPeaks, snapToPeak, computeCycleAmplitude } from './peakDetection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -197,9 +197,9 @@ export function runAutoAnalysis(
     dt = tcFirst - tsFirst
   }
 
-  // Amplitudes
-  const a1 = (arrayMax(vSrc) - arrayMin(vSrc)) / 2
-  const a2 = (arrayMax(vCal) - arrayMin(vCal)) / 2
+  // Amplitudes — per-cycle averaging for robustness against drift/transients
+  const a1 = computeCycleAmplitude(vSrc, strongSrc)
+  const a2 = computeCycleAmplitude(vCal, strongCal)
 
   return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
 }
@@ -232,8 +232,17 @@ export function runManualAnalysis(
   const w = (2 * Math.PI) / T
   const dt = p3.time - p1.time
 
-  const a1 = (arrayMax(vSrc) - arrayMin(vSrc)) / 2
-  const a2 = (arrayMax(vCal) - arrayMin(vCal)) / 2
+  // Amplitudes — per-cycle averaging (same logic as auto mode)
+  const distSrc = Math.max(Math.floor(vSrc.length / 8), 10)
+  const distCal = Math.max(Math.floor(vCal.length / 8), 10)
+  const srcPeaks = findPeaks(vSrc, distSrc)
+  const calPeaks = findPeaks(vCal, distCal)
+  const srcThresh = arrayMin(vSrc) + (arrayMax(vSrc) - arrayMin(vSrc)) * 0.6
+  const calThresh = arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.6
+  const strongSrcM = srcPeaks.filter(i => vSrc[i] >= srcThresh)
+  const strongCalM = calPeaks.filter(i => vCal[i] >= calThresh)
+  const a1 = computeCycleAmplitude(vSrc, strongSrcM.length >= 2 ? strongSrcM : srcPeaks)
+  const a2 = computeCycleAmplitude(vCal, strongCalM.length >= 1 ? strongCalM : calPeaks)
 
   return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
 }
