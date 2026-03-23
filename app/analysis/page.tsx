@@ -346,6 +346,32 @@ export default function AnalysisPage() {
             yref: 'y2' as const,
             line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
           },
+          // Mean peak level — Source
+          {
+            type: 'line' as const, x0: selMin, x1: selMax,
+            y0: results.meanPeakSrc, y1: results.meanPeakSrc,
+            line: { color: '#2980b9', dash: 'dot' as const, width: 1.5 },
+          },
+          // Mean trough level — Source
+          {
+            type: 'line' as const, x0: selMin, x1: selMax,
+            y0: results.meanTroughSrc, y1: results.meanTroughSrc,
+            line: { color: '#2980b9', dash: 'dot' as const, width: 1.5 },
+          },
+          // Mean peak level — Response
+          {
+            type: 'line' as const, x0: selMin, x1: selMax,
+            y0: results.meanPeakCal, y1: results.meanPeakCal,
+            yref: 'y2' as const,
+            line: { color: '#c0392b', dash: 'dot' as const, width: 1.5 },
+          },
+          // Mean trough level — Response
+          {
+            type: 'line' as const, x0: selMin, x1: selMax,
+            y0: results.meanTroughCal, y1: results.meanTroughCal,
+            yref: 'y2' as const,
+            line: { color: '#c0392b', dash: 'dot' as const, width: 1.5 },
+          },
           {
             type: 'line' as const, x0: results.markerSrcTime, x1: results.markerSrcTime,
             y0: 0, y1: 1, yref: 'paper' as const,
@@ -374,6 +400,30 @@ export default function AnalysisPage() {
           {
             x: results.markerCalTime, y: 1.05, yref: 'paper' as const, text: 'Resp Peak',
             showarrow: false, font: { color: '#e74c3c', size: 11 },
+          },
+          // Amplitude level labels — Source (left y-axis)
+          {
+            x: selMax, y: results.meanPeakSrc, xanchor: 'left' as const,
+            text: ` ${results.meanPeakSrc.toFixed(1)}`,
+            showarrow: false, font: { color: '#2980b9', size: 10 },
+          },
+          {
+            x: selMax, y: results.meanTroughSrc, xanchor: 'left' as const,
+            text: ` ${results.meanTroughSrc.toFixed(1)}`,
+            showarrow: false, font: { color: '#2980b9', size: 10 },
+          },
+          // Amplitude level labels — Response (right y2-axis)
+          {
+            x: selMin, y: results.meanPeakCal, xanchor: 'right' as const,
+            yref: 'y2' as const,
+            text: `${results.meanPeakCal.toFixed(1)} `,
+            showarrow: false, font: { color: '#c0392b', size: 10 },
+          },
+          {
+            x: selMin, y: results.meanTroughCal, xanchor: 'right' as const,
+            yref: 'y2' as const,
+            text: `${results.meanTroughCal.toFixed(1)} `,
+            showarrow: false, font: { color: '#c0392b', size: 10 },
           },
         ],
         margin: { t: 60, b: 50 },

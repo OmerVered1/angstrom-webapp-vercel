@@ -3,7 +3,7 @@
  * Ported from analysis.py — all math runs client-side.
  */
 
-import { findPeaks, snapToPeak, computeCycleAmplitude } from './peakDetection'
+import { findPeaks, findTroughs, snapToPeak, computeCycleAmplitude } from './peakDetection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +46,10 @@ export interface AnalysisResults {
   markerSrcTime: number
   markerSrc2Time: number
   markerCalTime: number
+  meanPeakSrc: number
+  meanTroughSrc: number
+  meanPeakCal: number
+  meanTroughCal: number
 }
 
 export type TimeUnit = 'Seconds' | 'Minutes' | 'Hours' | 'ms'
@@ -93,6 +97,13 @@ function meanDiff(arr: number[]): number {
   let sum = 0
   for (let i = 1; i < arr.length; i++) sum += arr[i] - arr[i - 1]
   return sum / (arr.length - 1)
+}
+
+function meanOfIndices(values: number[], indices: number[]): number {
+  if (indices.length === 0) return 0
+  let sum = 0
+  for (const i of indices) sum += values[i]
+  return sum / indices.length
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +212,18 @@ export function runAutoAnalysis(
   const a1 = computeCycleAmplitude(vSrc, strongSrc)
   const a2 = computeCycleAmplitude(vCal, strongCal)
 
-  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
+  // Mean peak/trough levels for visualization
+  const distSrc = Math.max(Math.floor(vSrc.length / 8), 10)
+  const distCal = Math.max(Math.floor(vCal.length / 8), 10)
+  const troughsSrc = findTroughs(vSrc, distSrc).filter(i => vSrc[i] <= arrayMin(vSrc) + (arrayMax(vSrc) - arrayMin(vSrc)) * 0.4)
+  const troughsCal = findTroughs(vCal, distCal).filter(i => vCal[i] <= arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.4)
+
+  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
+  result.meanPeakSrc = meanOfIndices(vSrc, strongSrc)
+  result.meanTroughSrc = troughsSrc.length > 0 ? meanOfIndices(vSrc, troughsSrc) : arrayMin(vSrc)
+  result.meanPeakCal = meanOfIndices(vCal, strongCal)
+  result.meanTroughCal = troughsCal.length > 0 ? meanOfIndices(vCal, troughsCal) : arrayMin(vCal)
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -241,10 +263,21 @@ export function runManualAnalysis(
   const calThresh = arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.6
   const strongSrcM = srcPeaks.filter(i => vSrc[i] >= srcThresh)
   const strongCalM = calPeaks.filter(i => vCal[i] >= calThresh)
-  const a1 = computeCycleAmplitude(vSrc, strongSrcM.length >= 2 ? strongSrcM : srcPeaks)
-  const a2 = computeCycleAmplitude(vCal, strongCalM.length >= 1 ? strongCalM : calPeaks)
+  const useSrcPeaks = strongSrcM.length >= 2 ? strongSrcM : srcPeaks
+  const useCalPeaks = strongCalM.length >= 1 ? strongCalM : calPeaks
+  const a1 = computeCycleAmplitude(vSrc, useSrcPeaks)
+  const a2 = computeCycleAmplitude(vCal, useCalPeaks)
 
-  return calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
+  // Mean peak/trough levels for visualization
+  const troughsSrcM = findTroughs(vSrc, distSrc).filter(i => vSrc[i] <= arrayMin(vSrc) + (arrayMax(vSrc) - arrayMin(vSrc)) * 0.4)
+  const troughsCalM = findTroughs(vCal, distCal).filter(i => vCal[i] <= arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.4)
+
+  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
+  result.meanPeakSrc = meanOfIndices(vSrc, useSrcPeaks)
+  result.meanTroughSrc = troughsSrcM.length > 0 ? meanOfIndices(vSrc, troughsSrcM) : arrayMin(vSrc)
+  result.meanPeakCal = meanOfIndices(vCal, useCalPeaks)
+  result.meanTroughCal = troughsCalM.length > 0 ? meanOfIndices(vCal, troughsCalM) : arrayMin(vCal)
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +349,10 @@ function calculateThermalDiffusivity(
     markerSrcTime: markerSrc,
     markerSrc2Time: markerSrc2,
     markerCalTime: markerCal,
+    meanPeakSrc: 0,
+    meanTroughSrc: 0,
+    meanPeakCal: 0,
+    meanTroughCal: 0,
   }
 }
 
