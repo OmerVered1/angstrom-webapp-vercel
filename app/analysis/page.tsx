@@ -322,18 +322,14 @@ export default function AnalysisPage() {
         },
         {
           x: tCalF, y: vCalF, name: 'Response', type: 'scatter' as const, mode: 'lines' as const,
-          line: { color: '#e74c3c', width: 2 }, yaxis: 'y2' as const,
+          line: { color: '#e74c3c', width: 2 },
         },
       ],
       layout: {
         title: `Stable Zone Analysis \u2014 \u0394t = ${results.rawLagDt.toFixed(2)}s`,
         height: 500,
         xaxis: { title: 'Time (s)' },
-        yaxis: { title: 'Source (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
-        yaxis2: {
-          title: 'Response (mW)', side: 'right' as const, overlaying: 'y' as const,
-          titlefont: { color: '#e74c3c' },
-        },
+        yaxis: { title: 'Power (mW)' },
         legend: { orientation: 'h' as const, y: 1.12 },
         hovermode: 'x unified' as const,
         shapes: [
@@ -343,7 +339,6 @@ export default function AnalysisPage() {
           },
           {
             type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean,
-            yref: 'y2' as const,
             line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
           },
           // Amplitude envelope — Source: mean ± A1
@@ -361,13 +356,11 @@ export default function AnalysisPage() {
           {
             type: 'line' as const, x0: selMin, x1: selMax,
             y0: calMean + results.amplitudeA2, y1: calMean + results.amplitudeA2,
-            yref: 'y2' as const,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
           {
             type: 'line' as const, x0: selMin, x1: selMax,
             y0: calMean - results.amplitudeA2, y1: calMean - results.amplitudeA2,
-            yref: 'y2' as const,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
           {
@@ -415,14 +408,12 @@ export default function AnalysisPage() {
           // Amplitude envelope labels — Response (orange)
           {
             x: selMax, y: calMean + results.amplitudeA2, xanchor: 'right' as const,
-            yref: 'y2' as const,
             text: `A2 = ${results.amplitudeA2.toFixed(1)} mW  `,
             showarrow: false, font: { color: '#f39c12', size: 11, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
           {
             x: selMax, y: calMean - results.amplitudeA2, xanchor: 'right' as const,
-            yref: 'y2' as const,
             text: `−A2  `,
             showarrow: false, font: { color: '#f39c12', size: 11, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
