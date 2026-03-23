@@ -3,7 +3,7 @@
  * Ported from analysis.py — all math runs client-side.
  */
 
-import { findPeaks, findTroughs, snapToPeak, computeCycleAmplitude } from './peakDetection'
+import { findPeaks, snapToPeak, computeCycleAmplitude } from './peakDetection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,6 +104,20 @@ function meanOfIndices(values: number[], indices: number[]): number {
   let sum = 0
   for (const i of indices) sum += values[i]
   return sum / indices.length
+}
+
+/** Average of the minimum values found between each pair of consecutive peaks. */
+function meanTroughBetweenPeaks(values: number[], peakIndices: number[]): number {
+  if (peakIndices.length < 2) return arrayMin(values)
+  let sum = 0
+  for (let k = 0; k < peakIndices.length - 1; k++) {
+    let minVal = values[peakIndices[k]]
+    for (let i = peakIndices[k] + 1; i < peakIndices[k + 1]; i++) {
+      if (values[i] < minVal) minVal = values[i]
+    }
+    sum += minVal
+  }
+  return sum / (peakIndices.length - 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -212,17 +226,12 @@ export function runAutoAnalysis(
   const a1 = computeCycleAmplitude(vSrc, strongSrc)
   const a2 = computeCycleAmplitude(vCal, strongCal)
 
-  // Mean peak/trough levels for visualization
-  const distSrc = Math.max(Math.floor(vSrc.length / 8), 10)
-  const distCal = Math.max(Math.floor(vCal.length / 8), 10)
-  const troughsSrc = findTroughs(vSrc, distSrc).filter(i => vSrc[i] <= arrayMin(vSrc) + (arrayMax(vSrc) - arrayMin(vSrc)) * 0.4)
-  const troughsCal = findTroughs(vCal, distCal).filter(i => vCal[i] <= arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.4)
-
+  // Mean peak/trough levels for visualization — only use troughs between consecutive peaks
   const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
   result.meanPeakSrc = meanOfIndices(vSrc, strongSrc)
-  result.meanTroughSrc = troughsSrc.length > 0 ? meanOfIndices(vSrc, troughsSrc) : arrayMin(vSrc)
+  result.meanTroughSrc = meanTroughBetweenPeaks(vSrc, strongSrc)
   result.meanPeakCal = meanOfIndices(vCal, strongCal)
-  result.meanTroughCal = troughsCal.length > 0 ? meanOfIndices(vCal, troughsCal) : arrayMin(vCal)
+  result.meanTroughCal = meanTroughBetweenPeaks(vCal, strongCal)
   return result
 }
 
@@ -268,15 +277,12 @@ export function runManualAnalysis(
   const a1 = computeCycleAmplitude(vSrc, useSrcPeaks)
   const a2 = computeCycleAmplitude(vCal, useCalPeaks)
 
-  // Mean peak/trough levels for visualization
-  const troughsSrcM = findTroughs(vSrc, distSrc).filter(i => vSrc[i] <= arrayMin(vSrc) + (arrayMax(vSrc) - arrayMin(vSrc)) * 0.4)
-  const troughsCalM = findTroughs(vCal, distCal).filter(i => vCal[i] <= arrayMin(vCal) + (arrayMax(vCal) - arrayMin(vCal)) * 0.4)
-
+  // Mean peak/trough levels for visualization — only troughs between consecutive peaks
   const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
   result.meanPeakSrc = meanOfIndices(vSrc, useSrcPeaks)
-  result.meanTroughSrc = troughsSrcM.length > 0 ? meanOfIndices(vSrc, troughsSrcM) : arrayMin(vSrc)
+  result.meanTroughSrc = meanTroughBetweenPeaks(vSrc, useSrcPeaks)
   result.meanPeakCal = meanOfIndices(vCal, useCalPeaks)
-  result.meanTroughCal = troughsCalM.length > 0 ? meanOfIndices(vCal, troughsCalM) : arrayMin(vCal)
+  result.meanTroughCal = meanTroughBetweenPeaks(vCal, useCalPeaks)
   return result
 }
 
