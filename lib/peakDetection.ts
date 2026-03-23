@@ -85,47 +85,34 @@ export function findTroughs(values: number[], distance: number): number[] {
 }
 
 /**
- * Compute per-cycle amplitude by averaging (peak - adjacent trough) / 2
- * across detected cycles. Falls back to (max - min) / 2 if detection fails.
+ * Compute per-cycle amplitude using only troughs between consecutive peaks
+ * to avoid edge effects from incomplete cycles at selection boundaries.
+ * Falls back to (max - min) / 2 if fewer than 2 peaks.
  */
 export function computeCycleAmplitude(
   values: number[],
   peakIndices: number[],
 ): number {
-  if (peakIndices.length < 1) {
+  if (peakIndices.length < 2) {
     return (arrayMaxPD(values) - arrayMinPD(values)) / 2
   }
 
-  // Find troughs between consecutive peaks, and before first / after last peak
+  // For each pair of adjacent peaks, find the trough between them
   const amplitudes: number[] = []
 
-  for (const pi of peakIndices) {
-    // Look for the minimum between this peak and its neighbours
-    // Search left: from previous peak (or start) to this peak
-    const leftBound = peakIndices.indexOf(pi) > 0
-      ? peakIndices[peakIndices.indexOf(pi) - 1]
-      : 0
-    // Search right: from this peak to next peak (or end)
-    const idx = peakIndices.indexOf(pi)
-    const rightBound = idx < peakIndices.length - 1
-      ? peakIndices[idx + 1]
-      : values.length - 1
+  for (let k = 0; k < peakIndices.length - 1; k++) {
+    const p1 = peakIndices[k]
+    const p2 = peakIndices[k + 1]
 
-    // Find min on left side
-    let leftMin = values[pi]
-    for (let i = leftBound; i < pi; i++) {
-      if (values[i] < leftMin) leftMin = values[i]
+    // Find minimum between these two peaks
+    let troughVal = values[p1]
+    for (let i = p1 + 1; i < p2; i++) {
+      if (values[i] < troughVal) troughVal = values[i]
     }
 
-    // Find min on right side
-    let rightMin = values[pi]
-    for (let i = pi + 1; i <= rightBound; i++) {
-      if (values[i] < rightMin) rightMin = values[i]
-    }
-
-    // Use the average of left and right trough depths
-    const troughAvg = (leftMin + rightMin) / 2
-    amplitudes.push((values[pi] - troughAvg) / 2)
+    // Average of the two peak values for this cycle
+    const peakAvg = (values[p1] + values[p2]) / 2
+    amplitudes.push((peakAvg - troughVal) / 2)
   }
 
   if (amplitudes.length === 0) {
