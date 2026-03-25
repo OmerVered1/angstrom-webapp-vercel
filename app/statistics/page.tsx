@@ -235,8 +235,8 @@ export default function StatisticsPage() {
         layout: {
           title: `${yMeta.label} vs ${xAxis}`,
           height: 500,
-          xaxis: { title: xAxis },
-          yaxis: { title: yMeta.label },
+          xaxis: { title: { text: xAxis, standoff: 10 }, automargin: true },
+          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true },
           hovermode: 'closest' as const,
           shapes: litShapes,
           annotations: litAnnotations,
@@ -276,8 +276,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${yMeta.label} by ${groupBy}`,
         height: 500,
-        xaxis: { title: groupBy },
-        yaxis: { title: yMeta.label },
+        xaxis: { title: { text: groupBy, standoff: 10 }, automargin: true },
+        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true },
         shapes: litShapes,
         annotations: litAnnotations,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -336,8 +336,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${seriesLabels} vs Period \u2014 by Model`,
         height: 420,
-        xaxis: { title: 'Period (s)' },
-        yaxis: { title: '\u03B1 (mm\u00B2/s)' },
+        xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true },
+        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true },
         shapes: litShapes,
         annotations: litAnn,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -353,7 +353,7 @@ export default function StatisticsPage() {
     if (filtered.length === 0) return []
     const models = Array.from(new Set(filtered.map(a => a.model_name)))
 
-    const makePlot = (title: string, extract: (a: Analysis) => number | null, refLine?: number) => {
+    const makePlot = (title: string, yLabel: string, extract: (a: Analysis) => number | null, refLine?: number) => {
       const traces: Plotly.Data[] = models.map((m, mi) => {
         const vals = filtered.filter(a => a.model_name === m).map(a => extract(a)).filter((v): v is number => v != null)
         return { y: vals, name: m, type: 'box' as const, boxpoints: 'all' as const, jitter: 0.3, marker: { color: COLORS[mi % COLORS.length] } }
@@ -362,6 +362,8 @@ export default function StatisticsPage() {
         data: traces,
         layout: {
           title, height: 350,
+          xaxis: { title: { text: 'Model', standoff: 10 }, automargin: true },
+          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true },
           shapes: refLine != null ? [{
             type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
             y0: refLine, y1: refLine,
@@ -371,7 +373,7 @@ export default function StatisticsPage() {
             x: 1, xref: 'paper' as const, y: refLine, text: 'Ideal', showarrow: false,
             font: { color: '#888', size: 10 },
           }] : [],
-          margin: { t: 40, b: 30 },
+          margin: { t: 40, b: 50 },
           showlegend: false,
         },
         config: { responsive: true },
@@ -379,9 +381,9 @@ export default function StatisticsPage() {
     }
 
     return [
-      makePlot('ln term by Model', a => a.ln_term),
-      makePlot('A\u2081/A\u2082 Ratio by Model', a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null),
-      makePlot('\u03B1 phase/\u03B1 comb by Model', a => a.alpha_combined_raw > 0 && a.alpha_phase_raw > 0 ? a.alpha_phase_raw / a.alpha_combined_raw : null, 1),
+      makePlot('ln term by Model', 'ln(A\u2081\u221Ar\u2081 / A\u2082\u221Ar\u2082)', a => a.ln_term),
+      makePlot('A\u2081/A\u2082 Ratio by Model', 'A\u2081/A\u2082', a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null),
+      makePlot('\u03B1 phase/\u03B1 comb by Model', '\u03B1 phase / \u03B1 combined', a => a.alpha_combined_raw > 0 && a.alpha_phase_raw > 0 ? a.alpha_phase_raw / a.alpha_combined_raw : null, 1),
     ]
   }, [filtered])
 
@@ -403,7 +405,7 @@ export default function StatisticsPage() {
       })
       return {
         data: traces,
-        layout: { title, height: 350, xaxis: { title: 'Period (s)' }, yaxis: { title: yLabel }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
+        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
         config: { responsive: true },
       }
     }
