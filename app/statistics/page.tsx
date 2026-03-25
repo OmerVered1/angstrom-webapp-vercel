@@ -169,6 +169,11 @@ export default function StatisticsPage() {
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
+  // ── Shared axis styling ────────────────────────────────────────────────
+  const axisFrame = { showline: true, linewidth: 1, linecolor: '#ccc', mirror: true, showgrid: true, gridcolor: '#eee' }
+  const xAxisBase = { ...axisFrame, automargin: true, type: logX ? 'log' as const : 'linear' as const, ...(logX ? { tickformat: '.0f' } : {}) }
+  const yAxisBase = { ...axisFrame, automargin: true, type: logY ? 'log' as const : 'linear' as const, ...(logY ? { tickformat: '.4~g' } : {}) }
+
   // ── Build chart ─────────────────────────────────────────────────────────
 
   const chartBuilderPlot = useMemo(() => {
@@ -237,8 +242,8 @@ export default function StatisticsPage() {
         layout: {
           title: `${yMeta.label} vs ${xAxis}`,
           height: 500,
-          xaxis: { title: { text: xAxis, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
-          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+          xaxis: { ...xAxisBase, title: { text: xAxis, standoff: 10 } },
+          yaxis: { ...yAxisBase, title: { text: yMeta.label, standoff: 10 } },
           hovermode: 'closest' as const,
           shapes: litShapes,
           annotations: litAnnotations,
@@ -278,8 +283,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${yMeta.label} by ${groupBy}`,
         height: 500,
-        xaxis: { title: { text: groupBy, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
-        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+        xaxis: { ...xAxisBase, title: { text: groupBy, standoff: 10 } },
+        yaxis: { ...yAxisBase, title: { text: yMeta.label, standoff: 10 } },
         shapes: litShapes,
         annotations: litAnnotations,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -338,8 +343,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${seriesLabels} vs Period \u2014 by Model`,
         height: 420,
-        xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
-        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+        xaxis: { ...xAxisBase, title: { text: 'Period (s)', standoff: 10 } },
+        yaxis: { ...yAxisBase, title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 } },
         shapes: litShapes,
         annotations: litAnn,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -364,8 +369,8 @@ export default function StatisticsPage() {
         data: traces,
         layout: {
           title, height: 350,
-          xaxis: { title: { text: 'Model', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
-          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+          xaxis: { ...xAxisBase, title: { text: 'Model', standoff: 10 } },
+          yaxis: { ...yAxisBase, title: { text: yLabel, standoff: 10 } },
           shapes: refLine != null ? [{
             type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
             y0: refLine, y1: refLine,
@@ -407,7 +412,7 @@ export default function StatisticsPage() {
       })
       return {
         data: traces,
-        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
+        layout: { title, height: 350, xaxis: { ...xAxisBase, title: { text: 'Period (s)', standoff: 10 } }, yaxis: { ...yAxisBase, title: { text: yLabel, standoff: 10 } }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
         config: { responsive: true },
       }
     }
