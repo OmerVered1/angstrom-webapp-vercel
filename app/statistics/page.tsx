@@ -130,6 +130,7 @@ export default function StatisticsPage() {
   const [xAxis, setXAxis] = useState('Period (s)')
   const [colorBy, setColorBy] = useState('None')
   const [showLit, setShowLit] = useState(false)
+  const [logY, setLogY] = useState(false)
 
   // Filters
   const [filterModels, setFilterModels] = useState<string[]>([])
@@ -236,7 +237,7 @@ export default function StatisticsPage() {
           title: `${yMeta.label} vs ${xAxis}`,
           height: 500,
           xaxis: { title: { text: xAxis, standoff: 10 }, automargin: true },
-          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true },
+          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
           hovermode: 'closest' as const,
           shapes: litShapes,
           annotations: litAnnotations,
@@ -277,7 +278,7 @@ export default function StatisticsPage() {
         title: `${yMeta.label} by ${groupBy}`,
         height: 500,
         xaxis: { title: { text: groupBy, standoff: 10 }, automargin: true },
-        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true },
+        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
         shapes: litShapes,
         annotations: litAnnotations,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -285,7 +286,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, showLit, yMeta])
+  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, showLit, yMeta, logY])
 
   // ── Alpha vs Period by Model ──────────────────────────────────────────
 
@@ -337,7 +338,7 @@ export default function StatisticsPage() {
         title: `${seriesLabels} vs Period \u2014 by Model`,
         height: 420,
         xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true },
-        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true },
+        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
         shapes: litShapes,
         annotations: litAnn,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -345,7 +346,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, selectedSeries, showLitAlpha])
+  }, [filtered, selectedSeries, showLitAlpha, logY])
 
   // ── Heat-loss indicators ──────────────────────────────────────────────
 
@@ -363,7 +364,7 @@ export default function StatisticsPage() {
         layout: {
           title, height: 350,
           xaxis: { title: { text: 'Model', standoff: 10 }, automargin: true },
-          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true },
+          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
           shapes: refLine != null ? [{
             type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
             y0: refLine, y1: refLine,
@@ -385,7 +386,7 @@ export default function StatisticsPage() {
       makePlot('A\u2081/A\u2082 Ratio by Model', 'A\u2081/A\u2082', a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null),
       makePlot('\u03B1 phase/\u03B1 comb by Model', '\u03B1 phase / \u03B1 combined', a => a.alpha_combined_raw > 0 && a.alpha_phase_raw > 0 ? a.alpha_phase_raw / a.alpha_combined_raw : null, 1),
     ]
-  }, [filtered])
+  }, [filtered, logY])
 
   // ── Phase lag analysis ────────────────────────────────────────────────
 
@@ -405,7 +406,7 @@ export default function StatisticsPage() {
       })
       return {
         data: traces,
-        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
+        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
         config: { responsive: true },
       }
     }
@@ -414,7 +415,7 @@ export default function StatisticsPage() {
       makePlot('Raw Phase \u03C6 vs Period', a => a.raw_phase_phi, '\u03C6 (rad)'),
       makePlot('Raw Time Lag \u0394t vs Period', a => a.raw_lag_dt, '\u0394t (s)'),
     ]
-  }, [filtered])
+  }, [filtered, logY])
 
   // ── Temperature dependence ────────────────────────────────────────────
 
@@ -671,10 +672,16 @@ export default function StatisticsPage() {
                 </>
               )}
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showLit} onChange={e => setShowLit(e.target.checked)} className="accent-accent" />
-              <span className="text-sm">{t('statistics.showLitRef')}</span>
-            </label>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={showLit} onChange={e => setShowLit(e.target.checked)} className="accent-accent" />
+                <span className="text-sm">{t('statistics.showLitRef')}</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={logY} onChange={e => setLogY(e.target.checked)} className="accent-accent" />
+                <span className="text-sm">Log Y-axis</span>
+              </label>
+            </div>
             {chartBuilderPlot && (
               <PlotlyChart
                 data={chartBuilderPlot.data as Plotly.Data[]}
