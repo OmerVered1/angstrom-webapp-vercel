@@ -249,6 +249,7 @@ export interface Translations {
     violin: string
     barMeanStd: string
     scatter: string
+    line: string
     showLitRef: string
     series: string
     litRefLines: string

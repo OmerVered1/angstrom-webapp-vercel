@@ -125,7 +125,7 @@ export default function StatisticsPage() {
 
   // Chart builder controls
   const [yMetric, setYMetric] = useState(Y_METRICS[0].key)
-  const [chartType, setChartType] = useState<'box' | 'violin' | 'bar' | 'scatter'>('box')
+  const [chartType, setChartType] = useState<'box' | 'violin' | 'bar' | 'scatter' | 'line'>('box')
   const [groupBy, setGroupBy] = useState('Model')
   const [xAxis, setXAxis] = useState('Period (s)')
   const [colorBy, setColorBy] = useState('None')
@@ -183,45 +183,50 @@ export default function StatisticsPage() {
       showarrow: false, xanchor: 'left' as const, font: { color, size: 10 },
     })) : []
 
-    if (chartType === 'scatter') {
-      // Scatter with optional color grouping
+    if (chartType === 'scatter' || chartType === 'line') {
+      // Scatter / Line with optional color grouping
       const groups = colorBy !== 'None'
         ? Array.from(new Set(filtered.map(a => groupValue(a, colorBy))))
         : ['All']
 
       const traces: Plotly.Data[] = groups.map((grp, gi) => {
         const subset = colorBy !== 'None' ? filtered.filter(a => groupValue(a, colorBy) === grp) : filtered
-        const xs: number[] = [], ys: number[] = [], texts: string[] = []
+        const points: { x: number; y: number; text: string }[] = []
         for (const a of subset) {
           const xv = xValue(a, xAxis)
           const yv = yMeta.extract(a)
           if (xv != null && yv != null) {
-            xs.push(xv); ys.push(yv)
-            texts.push(`${a.model_name} | ${Math.round(a.period_t / 10) * 10}s | ${a.test_date}`)
+            points.push({ x: xv, y: yv, text: `${a.model_name} | ${Math.round(a.period_t / 10) * 10}s | ${a.test_date}` })
           }
         }
+        // Sort by x for line plots
+        if (chartType === 'line') points.sort((a, b) => a.x - b.x)
         return {
-          x: xs, y: ys, text: texts,
-          name: grp, type: 'scatter' as const, mode: 'markers' as const,
-          marker: { color: COLORS[gi % COLORS.length], size: 8 },
+          x: points.map(p => p.x), y: points.map(p => p.y), text: points.map(p => p.text),
+          name: grp, type: 'scatter' as const,
+          mode: chartType === 'line' ? 'lines+markers' as const : 'markers' as const,
+          marker: { color: COLORS[gi % COLORS.length], size: chartType === 'line' ? 6 : 8 },
+          line: chartType === 'line' ? { color: COLORS[gi % COLORS.length], width: 2 } : undefined,
           hovertemplate: '%{text}<br>x: %{x}<br>y: %{y}<extra></extra>',
         }
       })
 
-      // Trend lines
+      // Trend lines (scatter only)
       const trendTraces: Plotly.Data[] = []
-      for (let gi = 0; gi < groups.length; gi++) {
-        const trace = traces[gi] as { x: number[]; y: number[] }
-        const fit = linearFit(trace.x, trace.y)
-        if (fit) {
-          const xSorted = [...trace.x].sort((a, b) => a - b)
-          trendTraces.push({
-            x: [xSorted[0], xSorted[xSorted.length - 1]],
-            y: [fit.slope * xSorted[0] + fit.intercept, fit.slope * xSorted[xSorted.length - 1] + fit.intercept],
-            name: `Trend (${groups[gi]})`, type: 'scatter' as const, mode: 'lines' as const,
-            line: { color: COLORS[gi % COLORS.length], dash: 'dot' as const, width: 1.5 },
-            showlegend: false,
-          })
+      if (chartType === 'scatter') {
+        for (let gi = 0; gi < groups.length; gi++) {
+          const trace = traces[gi] as { x: number[]; y: number[] }
+          const fit = linearFit(trace.x, trace.y)
+          if (fit) {
+            const xSorted = [...trace.x].sort((a, b) => a - b)
+            trendTraces.push({
+              x: [xSorted[0], xSorted[xSorted.length - 1]],
+              y: [fit.slope * xSorted[0] + fit.intercept, fit.slope * xSorted[xSorted.length - 1] + fit.intercept],
+              name: `Trend (${groups[gi]})`, type: 'scatter' as const, mode: 'lines' as const,
+              line: { color: COLORS[gi % COLORS.length], dash: 'dot' as const, width: 1.5 },
+              showlegend: false,
+            })
+          }
         }
       }
 
@@ -271,6 +276,7 @@ export default function StatisticsPage() {
       layout: {
         title: `${yMeta.label} by ${groupBy}`,
         height: 500,
+        xaxis: { title: groupBy },
         yaxis: { title: yMeta.label },
         shapes: litShapes,
         annotations: litAnnotations,
@@ -629,9 +635,10 @@ export default function StatisticsPage() {
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
                   <option value="box">{t('statistics.box')}</option><option value="violin">{t('statistics.violin')}</option>
                   <option value="bar">{t('statistics.barMeanStd')}</option><option value="scatter">{t('statistics.scatter')}</option>
+                  <option value="line">{t('statistics.line')}</option>
                 </select>
               </div>
-              {chartType === 'scatter' ? (
+              {(chartType === 'scatter' || chartType === 'line') ? (
                 <>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.xAxis')}</label>

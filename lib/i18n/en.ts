@@ -263,6 +263,7 @@ export const en: Translations = {
     violin: 'Violin',
     barMeanStd: 'Bar (mean \u00B1 std)',
     scatter: 'Scatter',
+    line: 'Line',
     showLitRef: 'Show literature reference lines',
     series: 'Series:',
     litRefLines: 'Literature reference lines',

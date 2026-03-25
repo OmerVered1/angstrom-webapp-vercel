@@ -263,6 +263,7 @@ export const he: Translations = {
     violin: 'כינור',
     barMeanStd: 'עמודות (ממוצע ± סטיית תקן)',
     scatter: 'פיזור',
+    line: 'קו',
     showLitRef: 'הצג קווי ייחוס מספרות',
     series: 'סדרה:',
     litRefLines: 'קווי ייחוס מספרות',
