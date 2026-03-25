@@ -237,8 +237,8 @@ export default function StatisticsPage() {
         layout: {
           title: `${yMeta.label} vs ${xAxis}`,
           height: 500,
-          xaxis: { title: { text: xAxis, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const },
-          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
+          xaxis: { title: { text: xAxis, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+          yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
           hovermode: 'closest' as const,
           shapes: litShapes,
           annotations: litAnnotations,
@@ -278,8 +278,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${yMeta.label} by ${groupBy}`,
         height: 500,
-        xaxis: { title: { text: groupBy, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const },
-        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
+        xaxis: { title: { text: groupBy, standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+        yaxis: { title: { text: yMeta.label, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
         shapes: litShapes,
         annotations: litAnnotations,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -338,8 +338,8 @@ export default function StatisticsPage() {
       layout: {
         title: `${seriesLabels} vs Period \u2014 by Model`,
         height: 420,
-        xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const },
-        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
+        xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+        yaxis: { title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
         shapes: litShapes,
         annotations: litAnn,
         legend: { orientation: 'h' as const, y: -0.2 },
@@ -364,8 +364,8 @@ export default function StatisticsPage() {
         data: traces,
         layout: {
           title, height: 350,
-          xaxis: { title: { text: 'Model', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const },
-          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const },
+          xaxis: { title: { text: 'Model', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
+          yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const },
           shapes: refLine != null ? [{
             type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
             y0: refLine, y1: refLine,
@@ -407,7 +407,7 @@ export default function StatisticsPage() {
       })
       return {
         data: traces,
-        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
+        layout: { title, height: 350, xaxis: { title: { text: 'Period (s)', standoff: 10 }, automargin: true, type: logX ? 'log' as const : 'linear' as const, exponentformat: 'none' as const }, yaxis: { title: { text: yLabel, standoff: 10 }, automargin: true, type: logY ? 'log' as const : 'linear' as const, exponentformat: 'none' as const }, margin: { t: 40, b: 50 }, legend: { orientation: 'h' as const, y: -0.25 } },
         config: { responsive: true },
       }
     }
