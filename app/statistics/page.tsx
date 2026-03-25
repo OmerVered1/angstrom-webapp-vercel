@@ -240,7 +240,7 @@ export default function StatisticsPage() {
       return {
         data: [...traces, ...trendTraces],
         layout: {
-          title: `${yMeta.label} vs ${xAxis}`,
+          title: `<b>${yMeta.label} vs ${xAxis}</b>`,
           height: 500,
           xaxis: { ...xAxisBase, title: { text: xAxis, standoff: 10 } },
           yaxis: { ...yAxisBase, title: { text: yMeta.label, standoff: 10 } },
@@ -281,7 +281,7 @@ export default function StatisticsPage() {
     return {
       data: traces,
       layout: {
-        title: `${yMeta.label} by ${groupBy}`,
+        title: `<b>${yMeta.label} by ${groupBy}</b>`,
         height: 500,
         xaxis: { ...xAxisBase, title: { text: groupBy, standoff: 10 } },
         yaxis: { ...yAxisBase, title: { text: yMeta.label, standoff: 10 } },
@@ -341,7 +341,7 @@ export default function StatisticsPage() {
     return {
       data: traces,
       layout: {
-        title: `${seriesLabels} vs Period \u2014 by Model`,
+        title: `<b>${seriesLabels} vs Period \u2014 by Model</b>`,
         height: 420,
         xaxis: { ...xAxisBase, title: { text: 'Period (s)', standoff: 10 } },
         yaxis: { ...yAxisBase, title: { text: '\u03B1 (mm\u00B2/s)', standoff: 10 } },
@@ -388,9 +388,9 @@ export default function StatisticsPage() {
     }
 
     return [
-      makePlot('ln term by Model', 'ln(A\u2081\u221Ar\u2081 / A\u2082\u221Ar\u2082)', a => a.ln_term),
-      makePlot('A\u2081/A\u2082 Ratio by Model', 'A\u2081/A\u2082', a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null),
-      makePlot('\u03B1 phase/\u03B1 comb by Model', '\u03B1 phase / \u03B1 combined', a => a.alpha_combined_raw > 0 && a.alpha_phase_raw > 0 ? a.alpha_phase_raw / a.alpha_combined_raw : null, 1),
+      makePlot('<b>ln term by Model</b>', 'ln(A\u2081\u221Ar\u2081 / A\u2082\u221Ar\u2082)', a => a.ln_term),
+      makePlot('<b>A\u2081/A\u2082 Ratio by Model</b>', 'A\u2081/A\u2082', a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null),
+      makePlot('<b>\u03B1 phase/\u03B1 comb by Model</b>', '\u03B1 phase / \u03B1 combined', a => a.alpha_combined_raw > 0 && a.alpha_phase_raw > 0 ? a.alpha_phase_raw / a.alpha_combined_raw : null, 1),
     ]
   }, [filtered, logY, logX])
 
@@ -418,8 +418,8 @@ export default function StatisticsPage() {
     }
 
     return [
-      makePlot('Raw Phase \u03C6 vs Period', a => a.raw_phase_phi, '\u03C6 (rad)'),
-      makePlot('Raw Time Lag \u0394t vs Period', a => a.raw_lag_dt, '\u0394t (s)'),
+      makePlot('<b>Raw Phase \u03C6 vs Period</b>', a => a.raw_phase_phi, '\u03C6 (rad)'),
+      makePlot('<b>Raw Time Lag \u0394t vs Period</b>', a => a.raw_lag_dt, '\u0394t (s)'),
     ]
   }, [filtered, logY, logX])
 
