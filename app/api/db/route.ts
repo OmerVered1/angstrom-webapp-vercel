@@ -32,8 +32,8 @@ export async function POST(request: Request) {
       id?: number
     }
 
-    // Only allow operations on the analyses table
-    if (table !== 'analyses') {
+    const allowedTables = ['analyses', 'setups']
+    if (!allowedTables.includes(table)) {
       return NextResponse.json({ error: 'Invalid table' }, { status: 400 })
     }
 

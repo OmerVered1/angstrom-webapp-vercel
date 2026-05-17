@@ -121,6 +121,19 @@ export interface Translations {
     temperature: string
     innerRadius: string
     outerRadius: string
+    powerSourceDevice: string
+    powerResponseDevice: string
+    setup: string
+    selectSetup: string
+    saveAsSetup: string
+    setupNamePrompt: string
+    deleteSetup: string
+    confirmDeleteSetup: string
+    setupSaved: string
+    setupSaveFailed: string
+    setupDeleteFailed: string
+    manageSetups: string
+    noSetupsYet: string
     calibrationSettings: string
     enableCalibration: string
     systemLag: string

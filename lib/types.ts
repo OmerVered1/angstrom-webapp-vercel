@@ -5,6 +5,8 @@ export interface Analysis {
   test_date: string
   test_time?: string
   temperature_c?: number
+  power_source_device?: string
+  power_response_device?: string
   analysis_mode: string
   r1_mm: number
   r2_mm: number
@@ -33,4 +35,15 @@ export interface HomeMetrics {
   totalAnalyses: number
   uniqueModels: number
   latestTestDate: string
+}
+
+export interface Setup {
+  id: number
+  created_at: string
+  name: string
+  temperature_c: number
+  power_source_device: string
+  power_response_device: string
+  r1_mm: number
+  r2_mm: number
 }

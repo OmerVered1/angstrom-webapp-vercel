@@ -78,8 +78,24 @@ export function detectFileType(content: ArrayBuffer, filename: string): FileType
 }
 
 /**
+ * Match a time substring like "12:52:04" or "1:48:43 PM" and return it
+ * normalised to 24-hour HH:MM:SS. Returns null on no match.
+ */
+function matchTime24h(line: string): string | null {
+  const m = line.match(/(\d{1,2}):(\d{2}):(\d{2})\s*([AaPp][Mm])?/)
+  if (!m) return null
+  let h = parseInt(m[1], 10)
+  const min = m[2]
+  const sec = m[3]
+  const ampm = m[4]?.toUpperCase()
+  if (ampm === 'PM' && h < 12) h += 12
+  else if (ampm === 'AM' && h === 12) h = 0
+  return `${h.toString().padStart(2, '0')}:${min}:${sec}`
+}
+
+/**
  * Extract instrument start time from file header.
- * Returns HH:MM:SS string or null.
+ * Returns HH:MM:SS string or null. Accepts both 24-hour and 12-hour (AM/PM) formats.
  */
 export function extractStartTime(content: ArrayBuffer, filename: string): string | null {
   const text = decodeBytes(content)
@@ -90,14 +106,14 @@ export function extractStartTime(content: ArrayBuffer, filename: string): string
 
     // C80: "Zone Start Time : 16/02/2026 12:52:04"
     if (lower.includes('zone start time')) {
-      const m = line.match(/(\d{1,2}:\d{2}:\d{2})/)
-      if (m) return m[1]
+      const t = matchTime24h(line)
+      if (t) return t
     }
 
     // Keithley: "# Started: 2026-02-16 14:48:43"
     if (line.trim().startsWith('#') && lower.includes('started')) {
-      const m = line.match(/(\d{1,2}:\d{2}:\d{2})/)
-      if (m) return m[1]
+      const t = matchTime24h(line)
+      if (t) return t
     }
   }
 
@@ -106,8 +122,8 @@ export function extractStartTime(content: ArrayBuffer, filename: string): string
     const lower = line.toLowerCase()
     if (lower.includes('creation') || lower.includes('user')) continue
     if (/start time|begin|started/i.test(lower)) {
-      const m = line.match(/(\d{1,2}:\d{2}:\d{2})/)
-      if (m) return m[1]
+      const t = matchTime24h(line)
+      if (t) return t
     }
   }
 

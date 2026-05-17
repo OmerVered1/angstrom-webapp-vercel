@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import PlotlyChart from '@/components/PlotlyChart'
 import {
   parseFile,
@@ -18,9 +18,10 @@ import {
   type TimeUnit,
   type PowerUnit,
 } from '@/lib/analysis'
-import { isConfigured } from '@/lib/supabase'
-import { dbInsert } from '@/lib/dbClient'
+import { supabase, isConfigured } from '@/lib/supabase'
+import { dbInsert, dbDelete } from '@/lib/dbClient'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import type { Setup } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,7 +88,14 @@ export default function AnalysisPage() {
   const [temperature, setTemperature] = useState(25.0)
   const [r1, setR1] = useState(6.72)
   const [r2, setR2] = useState(14.86)
+  const [powerSourceDevice, setPowerSourceDevice] = useState('Keithley 2450')
+  const [powerResponseDevice, setPowerResponseDevice] = useState('C80 Calvet')
   const [useCalibration, setUseCalibration] = useState(true)
+
+  // Setups (saved configurations)
+  const [setups, setSetups] = useState<Setup[]>([])
+  const [selectedSetupId, setSelectedSetupId] = useState<number | ''>('')
+  const [setupsMsg, setSetupsMsg] = useState('')
   const [systemLag, setSystemLag] = useState(105.0)
   const [analysisMode, setAnalysisMode] = useState<'Auto' | 'Manual'>('Auto')
 
@@ -112,6 +120,71 @@ export default function AnalysisPage() {
   // Loading/error
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // ── Setup CRUD ────────────────────────────────────────────────────────────
+
+  const loadSetups = useCallback(async () => {
+    if (!isConfigured) return
+    const { data, error: err } = await supabase
+      .from('setups')
+      .select('*')
+      .order('name', { ascending: true })
+    if (err) {
+      console.error('Failed to load setups:', err.message)
+      return
+    }
+    setSetups((data ?? []) as Setup[])
+  }, [])
+
+  useEffect(() => { loadSetups() }, [loadSetups])
+
+  const applySetup = useCallback((id: number | '') => {
+    setSelectedSetupId(id)
+    if (id === '') return
+    const s = setups.find(x => x.id === id)
+    if (!s) return
+    setTemperature(s.temperature_c)
+    setR1(s.r1_mm)
+    setR2(s.r2_mm)
+    setPowerSourceDevice(s.power_source_device)
+    setPowerResponseDevice(s.power_response_device)
+  }, [setups])
+
+  const handleSaveSetup = useCallback(async () => {
+    if (!isConfigured) return
+    const name = window.prompt(t('analysis.setupNamePrompt'))
+    if (!name || !name.trim()) return
+    setSetupsMsg('')
+    const row = {
+      name: name.trim(),
+      temperature_c: temperature,
+      power_source_device: powerSourceDevice,
+      power_response_device: powerResponseDevice,
+      r1_mm: r1,
+      r2_mm: r2,
+    }
+    const { data, error: err } = await dbInsert('setups', row)
+    if (err) {
+      setSetupsMsg(`${t('analysis.setupSaveFailed')}: ${err}`)
+      return
+    }
+    setSetupsMsg(t('analysis.setupSaved'))
+    const inserted = data?.[0] as Setup | undefined
+    await loadSetups()
+    if (inserted) setSelectedSetupId(inserted.id)
+  }, [temperature, r1, r2, powerSourceDevice, powerResponseDevice, loadSetups, t])
+
+  const handleDeleteSetup = useCallback(async (id: number) => {
+    if (!isConfigured) return
+    if (!window.confirm(t('analysis.confirmDeleteSetup'))) return
+    const { error: err } = await dbDelete('setups', id)
+    if (err) {
+      setSetupsMsg(`${t('analysis.setupDeleteFailed')}: ${err}`)
+      return
+    }
+    if (selectedSetupId === id) setSelectedSetupId('')
+    await loadSetups()
+  }, [selectedSetupId, loadSetups, t])
 
   // ── File handlers ─────────────────────────────────────────────────────────
 
@@ -437,6 +510,8 @@ export default function AnalysisPage() {
         test_date: testDate,
         test_time: testTime,
         temperature_c: temperature,
+        power_source_device: powerSourceDevice,
+        power_response_device: powerResponseDevice,
         analysis_mode: analysisMode,
         r1_mm: r1,
         r2_mm: r2,
@@ -472,7 +547,7 @@ export default function AnalysisPage() {
     } finally {
       setSaving(false)
     }
-  }, [results, modelName, testDate, testTime, temperature, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
+  }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -676,6 +751,55 @@ export default function AnalysisPage() {
 
         {/* Metadata */}
         <h3 className="text-lg font-semibold">{t('analysis.experimentMetadata')}</h3>
+
+        {/* Setup picker — scrollable list */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-[var(--text-muted)]">{t('analysis.setup')}</label>
+            <button
+              type="button"
+              onClick={handleSaveSetup}
+              className="px-3 py-1 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--bg-hover)]"
+            >
+              + {t('analysis.saveAsSetup')}
+            </button>
+          </div>
+          <div className="max-h-44 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg)] divide-y divide-[var(--border)]">
+            {setups.length === 0 ? (
+              <p className="px-3 py-3 text-sm text-[var(--text-muted)]">{t('analysis.noSetupsYet')}</p>
+            ) : (
+              setups.map(s => {
+                const active = selectedSetupId === s.id
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => applySetup(s.id)}
+                    className={`flex items-center justify-between gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                      active ? 'bg-accent/15' : 'hover:bg-[var(--bg-hover)]'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate">{s.name}</div>
+                      <div className="text-xs text-[var(--text-muted)] truncate">
+                        {s.temperature_c}°C · r₁={s.r1_mm} · r₂={s.r2_mm} · {s.power_source_device} / {s.power_response_device}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSetup(s.id) }}
+                      className="px-2 py-1 rounded text-xs text-red-500 hover:bg-red-500/10 shrink-0"
+                      title={t('analysis.deleteSetup')}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+          {setupsMsg && <p className="text-xs text-[var(--text-muted)]">{setupsMsg}</p>}
+        </div>
+
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.modelName')}</label>
@@ -696,6 +820,19 @@ export default function AnalysisPage() {
             <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.temperature')}</label>
             <input type="number" value={temperature} onChange={e => setTemperature(Number(e.target.value))}
               min={-50} max={500} step={0.1}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerSourceDevice')}</label>
+            <input type="text" value={powerSourceDevice} onChange={e => setPowerSourceDevice(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerResponseDevice')}</label>
+            <input type="text" value={powerResponseDevice} onChange={e => setPowerResponseDevice(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
         </div>
