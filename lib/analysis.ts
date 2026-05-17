@@ -290,7 +290,7 @@ export function runManualAnalysis(
 // Core thermal diffusivity
 // ---------------------------------------------------------------------------
 
-function calculateThermalDiffusivity(
+export function calculateThermalDiffusivity(
   a1: number,
   a2: number,
   T: number,

@@ -18,6 +18,7 @@ import {
   type TimeUnit,
   type PowerUnit,
 } from '@/lib/analysis'
+import { runSquareAnalysis, detectSquarePeriod } from '@/lib/squareAnalysis'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { dbInsert, dbDelete } from '@/lib/dbClient'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -98,6 +99,8 @@ export default function AnalysisPage() {
   const [setupsMsg, setSetupsMsg] = useState('')
   const [systemLag, setSystemLag] = useState(105.0)
   const [analysisMode, setAnalysisMode] = useState<'Auto' | 'Manual'>('Auto')
+  const [waveType, setWaveType] = useState<'sine' | 'square'>('sine')
+  const [squarePeriod, setSquarePeriod] = useState<number>(0)
 
   // Step 2 — synced data & region
   const [synced, setSynced] = useState<SyncedData | null>(null)
@@ -285,13 +288,19 @@ export default function AnalysisPage() {
       setManualPeak2(Math.round(tMin + span * 0.5))
       setManualResp(Math.round(tMin + span * 0.45))
 
+      // For square mode, auto-detect period from source edges (user can edit later)
+      if (waveType === 'square') {
+        const detected = detectSquarePeriod(data.tSrc, data.vSrc)
+        if (isFinite(detected) && detected > 0) setSquarePeriod(Math.round(detected * 10) / 10)
+      }
+
       setStep(2)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
-  }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, t])
+  }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, waveType, t])
 
   // ── Handle draggable peak lines on chart ──────────────────────────────────
 
@@ -344,7 +353,15 @@ export default function AnalysisPage() {
       }
 
       let res: AnalysisResults
-      if (analysisMode === 'Auto') {
+      if (waveType === 'square') {
+        res = runSquareAnalysis(
+          tCalFilt, vCalFilt, tSrcFilt, vSrcFilt,
+          params, selMin, selMax,
+          squarePeriod > 0 ? squarePeriod : undefined,
+        )
+        // Surface the period we ended up using so the user can see it
+        if (!squarePeriod || squarePeriod <= 0) setSquarePeriod(res.periodT)
+      } else if (analysisMode === 'Auto') {
         res = runAutoAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
       } else {
         const clicks: [number, number][] = [
@@ -362,7 +379,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, t])
+  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, waveType, squarePeriod, t])
 
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
@@ -512,7 +529,8 @@ export default function AnalysisPage() {
         temperature_c: temperature,
         power_source_device: powerSourceDevice,
         power_response_device: powerResponseDevice,
-        analysis_mode: analysisMode,
+        wave_type: waveType,
+        analysis_mode: waveType === 'square' ? 'Fourier' : analysisMode,
         r1_mm: r1,
         r2_mm: r2,
         amplitude_a1: results.amplitudeA1,
@@ -547,7 +565,7 @@ export default function AnalysisPage() {
     } finally {
       setSaving(false)
     }
-  }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
+  }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, waveType, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -856,6 +874,22 @@ export default function AnalysisPage() {
 
         {/* Calibration & Mode */}
         <h3 className="text-lg font-semibold">{t('analysis.calibrationSettings')}</h3>
+
+        {/* Wave type — top-level toggle */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium">{t('analysis.waveType')}</span>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="radio" name="waveType" value="sine" checked={waveType === 'sine'}
+              onChange={() => setWaveType('sine')} className="accent-accent" />
+            <span className="text-sm">{t('analysis.waveSine')}</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="radio" name="waveType" value="square" checked={waveType === 'square'}
+              onChange={() => setWaveType('square')} className="accent-accent" />
+            <span className="text-sm">{t('analysis.waveSquare')}</span>
+          </label>
+        </div>
+
         <div className="flex items-center gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={useCalibration} onChange={e => setUseCalibration(e.target.checked)}
@@ -868,19 +902,38 @@ export default function AnalysisPage() {
               disabled={!useCalibration} step={0.1}
               className="w-32 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm disabled:opacity-50" />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{t('analysis.mode')}</span>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input type="radio" name="mode" value="Auto" checked={analysisMode === 'Auto'}
-                onChange={() => setAnalysisMode('Auto')} className="accent-accent" />
-              <span className="text-sm">{t('analysis.auto')}</span>
-            </label>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input type="radio" name="mode" value="Manual" checked={analysisMode === 'Manual'}
-                onChange={() => setAnalysisMode('Manual')} className="accent-accent" />
-              <span className="text-sm">{t('analysis.manual')}</span>
-            </label>
-          </div>
+          {waveType === 'sine' ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">{t('analysis.mode')}</span>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="mode" value="Auto" checked={analysisMode === 'Auto'}
+                  onChange={() => setAnalysisMode('Auto')} className="accent-accent" />
+                <span className="text-sm">{t('analysis.auto')}</span>
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="mode" value="Manual" checked={analysisMode === 'Manual'}
+                  onChange={() => setAnalysisMode('Manual')} className="accent-accent" />
+                <span className="text-sm">{t('analysis.manual')}</span>
+              </label>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                {t('analysis.periodInput')}
+              </label>
+              <input
+                type="number"
+                value={squarePeriod || ''}
+                onChange={e => setSquarePeriod(Number(e.target.value))}
+                step={0.1}
+                placeholder="auto"
+                className="w-32 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
+              />
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                {t('analysis.periodAutoDetected')}
+              </p>
+            </div>
+          )}
         </div>
 
         <hr className="border-[var(--border)]" />

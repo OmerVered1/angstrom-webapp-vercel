@@ -134,6 +134,11 @@ export interface Translations {
     setupDeleteFailed: string
     manageSetups: string
     noSetupsYet: string
+    waveType: string
+    waveSine: string
+    waveSquare: string
+    periodInput: string
+    periodAutoDetected: string
     calibrationSettings: string
     enableCalibration: string
     systemLag: string
