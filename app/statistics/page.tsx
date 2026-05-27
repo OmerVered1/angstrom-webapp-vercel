@@ -543,9 +543,12 @@ export default function StatisticsPage() {
       const combCal = subset.filter(a => (a.alpha_combined_cal ?? 0) > 0).map(a => a.alpha_combined_cal! * 1e6)
       const phaseCal = subset.filter(a => (a.alpha_phase_cal ?? 0) > 0).map(a => a.alpha_phase_cal! * 1e6)
 
-      const s = (arr: number[]) => arr.length > 0
-        ? { n: arr.length, mean: mean(arr).toPrecision(4), std: std(arr).toPrecision(3), min: Math.min(...arr).toPrecision(4), max: Math.max(...arr).toPrecision(4) }
-        : { n: 0, mean: '\u2014', std: '\u2014', min: '\u2014', max: '\u2014' }
+      const s = (arr: number[]) => {
+        if (arr.length === 0) return { n: 0, mean: '\u2014', std: '\u2014', min: '\u2014', max: '\u2014' }
+        let lo = Infinity, hi = -Infinity
+        for (const v of arr) { if (v < lo) lo = v; if (v > hi) hi = v }
+        return { n: arr.length, mean: mean(arr).toPrecision(4), std: std(arr).toPrecision(3), min: lo.toPrecision(4), max: hi.toPrecision(4) }
+      }
 
       return { model, n: subset.length, combRaw: s(combRaw), phaseRaw: s(phaseRaw), combCal: s(combCal), phaseCal: s(phaseCal) }
     })

@@ -152,7 +152,9 @@ export function runSquareAnalysis(
 
   // Plot markers: first rising edges of source give two natural references
   // for visual sanity-check (one period apart), and source-edge + lag for response.
-  const srcMid = (Math.min(...src.v) + Math.max(...src.v)) / 2
+  let srcMin = Infinity, srcMax = -Infinity
+  for (const v of src.v) { if (v < srcMin) srcMin = v; if (v > srcMax) srcMax = v }
+  const srcMid = (srcMin + srcMax) / 2
   let firstSrcEdge = src.t[0]
   for (let i = 1; i < src.v.length; i++) {
     if (src.v[i - 1] < srcMid && src.v[i] >= srcMid) {

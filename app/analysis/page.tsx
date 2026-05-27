@@ -274,9 +274,9 @@ export default function AnalysisPage() {
 
       setSynced(data)
 
-      const allTimes = [...data.tSrc, ...data.tCal]
-      const tMin = Math.min(...allTimes)
-      const tMax = Math.max(...allTimes)
+      let tMin = Infinity, tMax = -Infinity
+      for (const t of data.tSrc) { if (t < tMin) tMin = t; if (t > tMax) tMax = t }
+      for (const t of data.tCal) { if (t < tMin) tMin = t; if (t > tMax) tMax = t }
       setRangeMin(tMin)
       setRangeMax(tMax)
 
