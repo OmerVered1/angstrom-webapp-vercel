@@ -4,7 +4,7 @@
  */
 
 import { findPeaks, snapToPeak, computeCycleAmplitude } from './peakDetection'
-import { extractFourierFundamental, filterToRange, detectSquarePeriod } from './squareAnalysis'
+import { extractFourierFundamental, filterToRange } from './squareAnalysis'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -461,32 +461,58 @@ function meanDt(time: number[]): number {
 }
 
 /**
- * Pair each source peak with the closest response peak in (t_src, t_src + T*0.6]
- * and return the median lag. Returns null if no pairs are found.
+ * Trim a time series to span an integer number of periods T starting from time[0].
+ * Eliminates spectral leakage in single-frequency DFT phase estimation.
  */
-function medianPairwiseLag(
-  tSrc: number[], srcPeakIdx: number[],
-  tCal: number[], calPeakIdx: number[],
-  T: number,
-): number | null {
-  const lags: number[] = []
-  const calTimes = calPeakIdx.map(i => tCal[i])
-  const window = T * 0.6
-  for (const si of srcPeakIdx) {
-    const ts = tSrc[si]
-    let bestDt: number | null = null
-    for (const tc of calTimes) {
-      const dt = tc - ts
-      if (dt > 0 && dt <= window) {
-        if (bestDt == null || dt < bestDt) bestDt = dt
-      }
+function trimToIntegerCycles(
+  time: number[], value: number[], T: number,
+): { t: number[]; v: number[] } {
+  if (time.length < 2 || T <= 0) return { t: [...time], v: [...value] }
+  const tStart = time[0]
+  const totalSpan = time[time.length - 1] - tStart
+  const nCycles = Math.floor(totalSpan / T)
+  if (nCycles < 2) return { t: [...time], v: [...value] }
+  const tEndTrim = tStart + nCycles * T
+  const t: number[] = []
+  const v: number[] = []
+  for (let i = 0; i < time.length; i++) {
+    if (time[i] <= tEndTrim) {
+      t.push(time[i])
+      v.push(value[i])
     }
-    if (bestDt != null) lags.push(bestDt)
   }
-  if (lags.length === 0) return null
-  lags.sort((a, b) => a - b)
-  const mid = Math.floor(lags.length / 2)
-  return lags.length % 2 === 0 ? (lags[mid - 1] + lags[mid]) / 2 : lags[mid]
+  return { t, v }
+}
+
+/**
+ * FFT-based lag estimation. Returns the time lag (s) of `cal` relative to `src`,
+ * wrapped to (-T/2, T/2]. Both signals are linearly detrended and trimmed to
+ * an integer number of cycles before the DFT to eliminate spectral leakage.
+ */
+function phaseLagViaFFT(
+  tSrc: number[], vSrc: number[],
+  tCal: number[], vCal: number[],
+  T: number,
+): { dt: number; ampSrc: number; ampCal: number } {
+  const f = 1 / T
+  const w = 2 * Math.PI * f
+
+  // Linear detrend on the (already-windowed) signals
+  const vSrcD = linearDetrend(tSrc, vSrc)
+  const vCalD = linearDetrend(tCal, vCal)
+
+  // Trim to integer cycles
+  const srcTrim = trimToIntegerCycles(tSrc, vSrcD, T)
+  const calTrim = trimToIntegerCycles(tCal, vCalD, T)
+
+  const srcFFT = extractFourierFundamental(srcTrim.t, srcTrim.v, f)
+  const calFFT = extractFourierFundamental(calTrim.t, calTrim.v, f)
+
+  let phaseDiff = srcFFT.phase - calFFT.phase
+  while (phaseDiff > Math.PI) phaseDiff -= 2 * Math.PI
+  while (phaseDiff < -Math.PI) phaseDiff += 2 * Math.PI
+
+  return { dt: phaseDiff / w, ampSrc: srcFFT.amplitude, ampCal: calFFT.amplitude }
 }
 
 // ---------------------------------------------------------------------------
@@ -540,23 +566,15 @@ export function runAutoHybridAnalysis(
     throw new Error('Not enough strong peaks after detrend. Widen the region or check the data.')
   }
 
-  // Period from median of source peak-to-peak intervals
-  const srcTimes = strongSrc.map(i => src.t[i])
-  const srcDiffs: number[] = []
-  for (let i = 1; i < srcTimes.length; i++) srcDiffs.push(srcTimes[i] - srcTimes[i - 1])
-  srcDiffs.sort((a, b) => a - b)
-  const T = srcDiffs.length % 2 === 0
-    ? (srcDiffs[srcDiffs.length / 2 - 1] + srcDiffs[srcDiffs.length / 2]) / 2
-    : srcDiffs[Math.floor(srcDiffs.length / 2)]
+  // Period from FFT estimate (more stable than peak-to-peak median)
+  const T = Test
   const w = (2 * Math.PI) / T
 
-  // (B) Median pairwise lag instead of first-peak lag
-  const dt = medianPairwiseLag(src.t, strongSrc, cal.t, strongCal, T)
-  if (dt == null) {
-    throw new Error('Could not pair source/response peaks. Try widening the region.')
-  }
+  // (B) FFT phase-based lag — sub-sample precision, region-stable
+  const lag = phaseLagViaFFT(src.t, src.v, cal.t, cal.v, T)
+  const dt = lag.dt
 
-  // Amplitudes on the detrended signal — per-cycle averaging
+  // Amplitudes on the detrended signal — per-cycle averaging from peaks
   const a1 = computeCycleAmplitude(vSrcD, strongSrc)
   const a2 = computeCycleAmplitude(vCalD, strongCal)
 
@@ -576,7 +594,7 @@ export function runAutoHybridAnalysis(
   // response peak that pairs with the first source peak.
   const tsFirst = src.t[strongSrc[0]]
   const tsSecond = src.t[strongSrc[1]]
-  const tcMarker = tsFirst + dt
+  const tcMarker = tsFirst + Math.abs(dt)
 
   const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcMarker)
   result.periodTResp = tResp && isFinite(tResp) && tResp > 0 ? tResp : null
@@ -609,37 +627,30 @@ export function runAutoFFTAnalysis(
     throw new Error('Selected region has too few samples for FFT analysis.')
   }
 
-  // Period: explicit override wins, otherwise FFT-detect on source
-  let T: number | null = params.fftPeriodOverride && params.fftPeriodOverride > 0
+  // Period: explicit override wins, otherwise FFT-detect on source.
+  // Detect on the detrended signal so DC drift doesn't bias the spectral peak.
+  const vSrcD0 = linearDetrend(src.t, src.v)
+  const T: number | null = params.fftPeriodOverride && params.fftPeriodOverride > 0
     ? params.fftPeriodOverride
-    : estimateFundamentalPeriod(src.t, src.v)
+    : estimateFundamentalPeriod(src.t, vSrcD0)
   if (!T || !isFinite(T) || T <= 0) {
     throw new Error('Could not determine fundamental period via FFT. Enter it manually.')
   }
-  const f = 1 / T
-  const w = 2 * Math.PI * f
+  const w = (2 * Math.PI) / T
 
-  const srcFFT = extractFourierFundamental(src.t, src.v, f)
-  const calFFT = extractFourierFundamental(cal.t, cal.v, f)
-  if (srcFFT.amplitude <= 0 || calFFT.amplitude <= 0) {
+  // FFT lag using detrended + integer-cycle-trimmed signals (no leakage)
+  const lag = phaseLagViaFFT(src.t, src.v, cal.t, cal.v, T)
+  if (lag.ampSrc <= 0 || lag.ampCal <= 0) {
     throw new Error('Fourier amplitude is zero in source or response — check the data.')
   }
+  const dt = lag.dt
 
-  // Phase lag: response phase relative to source. Normalise to (-π, π].
-  let phaseDiff = srcFFT.phase - calFFT.phase
-  while (phaseDiff > Math.PI) phaseDiff -= 2 * Math.PI
-  while (phaseDiff < -Math.PI) phaseDiff += 2 * Math.PI
-  const dt = phaseDiff / w
-
-  // Response period (diagnostic): FFT on the response signal
-  const tRespFFT = estimateFundamentalPeriod(cal.t, cal.v)
+  // Response period (diagnostic): FFT on the detrended response signal
+  const vCalD0 = linearDetrend(cal.t, cal.v)
+  const tRespFFT = estimateFundamentalPeriod(cal.t, vCalD0)
   const tResp = tRespFFT && isFinite(tRespFFT) && tRespFFT > 0 ? tRespFFT : null
 
-  // Marker times: first up-crossing of source mid-level + one period, and src + dt for response
-  const srcEdge = detectSquarePeriod(src.t, src.v) > 0
-    ? src.t[0] // detectSquarePeriod uses crossings; use a rough first edge approx
-    : src.t[0]
-  // Use a robust first up-crossing of the src mean
+  // Marker time: first up-crossing of source mean — purely visual
   let mean = 0
   for (const v of src.v) mean += v
   mean /= src.v.length
@@ -651,12 +662,10 @@ export function runAutoFFTAnalysis(
       break
     }
   }
-  // Silence unused-var warning while keeping the early calc available
-  void srcEdge
 
   const result = calculateThermalDiffusivity(
-    srcFFT.amplitude,
-    calFFT.amplitude,
+    lag.ampSrc,
+    lag.ampCal,
     T,
     w,
     Math.abs(dt),
