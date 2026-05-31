@@ -7,6 +7,7 @@ import {
   extractStartTime,
   extractDateFromFilename,
   extractTemperatureFromFilename,
+  extractPowerUnit,
 } from '@/lib/fileParser'
 import {
   syncAndFilterData,
@@ -218,6 +219,8 @@ export default function AnalysisPage() {
       setAutoSample(sample)
       setModelName(sample)
     }
+    const unit = extractPowerUnit(buf)
+    if (unit) setC80PwrUnit(unit)
   }, [])
 
   const handleSrcUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,6 +235,13 @@ export default function AnalysisPage() {
       setAutoSrcTime(startTime)
       setTSrcInput(startTime)
     }
+    const date = extractDateFromFilename(file.name)
+    if (date) {
+      setAutoDate(date)
+      setTestDate(date)
+    }
+    const unit = extractPowerUnit(buf)
+    if (unit) setSrcPwrUnit(unit)
   }, [])
 
   // ── Step 1 → Step 2: Load & Process ───────────────────────────────────────

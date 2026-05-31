@@ -136,8 +136,15 @@ export function extractStartTime(content: ArrayBuffer, filename: string): string
 export function extractDateFromFilename(filename: string): string | null {
   const basename = filename.replace(/\.[^.]+$/, '').replace(/^.*[\\/]/, '')
 
+  // DDMMYYYY (8 digits) — try before DDMMYY so 27052026 isn't misread as 052026
+  let m = basename.match(/(?:^|\D)(\d{2})(\d{2})(\d{4})(?:\D|$)/)
+  if (m) {
+    const [, dd, mm, yyyy] = m
+    if (isValidDate(dd, mm, yyyy)) return `${dd}/${mm}/${yyyy}`
+  }
+
   // DDMMYY (6 digits)
-  let m = basename.match(/(\d{2})(\d{2})(\d{2})(?:\D|$)/)
+  m = basename.match(/(?:^|\D)(\d{2})(\d{2})(\d{2})(?:\D|$)/)
   if (m) {
     const [, dd, mm, yy] = m
     const year = `20${yy}`
@@ -159,6 +166,24 @@ export function extractDateFromFilename(filename: string): string | null {
     if (isValidDate(dd, mm, yyyy)) return `${dd}/${mm}/${yyyy}`
   }
 
+  return null
+}
+
+/**
+ * Extract power unit (Watts / mW / uW) from the column header.
+ * Looks for patterns like "Power(W)", "HeatFlow(mW)", "Power / µW".
+ */
+export function extractPowerUnit(content: ArrayBuffer): 'Watts' | 'mW' | 'uW' | null {
+  const text = decodeBytes(content)
+  const head = text.split(/\r?\n/).slice(0, 60).join('\n').toLowerCase()
+
+  const re = /(?:power|heat[\s_]*flow)[^a-z\n]*?[(/]\s*(m\s*w|µ\s*w|u\s*w|w)\s*\)?/
+  const m = head.match(re)
+  if (!m) return null
+  const u = m[1].replace(/\s+/g, '')
+  if (u === 'mw') return 'mW'
+  if (u === 'µw' || u === 'uw') return 'uW'
+  if (u === 'w') return 'Watts'
   return null
 }
 
