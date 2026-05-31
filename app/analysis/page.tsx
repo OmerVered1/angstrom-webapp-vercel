@@ -12,7 +12,10 @@ import {
 import {
   syncAndFilterData,
   runAutoAnalysis,
+  runAutoHybridAnalysis,
+  runAutoFFTAnalysis,
   runManualAnalysis,
+  type AnalysisMode,
   type AnalysisParams,
   type AnalysisResults,
   type SyncedData,
@@ -99,7 +102,8 @@ export default function AnalysisPage() {
   const [selectedSetupId, setSelectedSetupId] = useState<number | ''>('')
   const [setupsMsg, setSetupsMsg] = useState('')
   const [systemLag, setSystemLag] = useState(105.0)
-  const [analysisMode, setAnalysisMode] = useState<'Auto' | 'Manual'>('Auto')
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('Auto')
+  const [fftPeriodOverride, setFftPeriodOverride] = useState<number>(0)
   const [waveType, setWaveType] = useState<'sine' | 'square'>('sine')
   const [squarePeriod, setSquarePeriod] = useState<number>(0)
 
@@ -269,6 +273,7 @@ export default function AnalysisPage() {
         c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit,
         useCalibration, systemLag,
         analysisMode,
+        fftPeriodOverride: analysisMode === 'AutoFFT' && fftPeriodOverride > 0 ? fftPeriodOverride : undefined,
       }
 
       const data = syncAndFilterData(
@@ -338,6 +343,7 @@ export default function AnalysisPage() {
         c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit,
         useCalibration, systemLag,
         analysisMode,
+        fftPeriodOverride: analysisMode === 'AutoFFT' && fftPeriodOverride > 0 ? fftPeriodOverride : undefined,
       }
 
       const tSrcFilt: number[] = []
@@ -373,6 +379,14 @@ export default function AnalysisPage() {
         if (!squarePeriod || squarePeriod <= 0) setSquarePeriod(res.periodT)
       } else if (analysisMode === 'Auto') {
         res = runAutoAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+      } else if (analysisMode === 'AutoHybrid') {
+        res = runAutoHybridAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+      } else if (analysisMode === 'AutoFFT') {
+        res = runAutoFFTAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+        // Surface the auto-detected period so user sees what was used
+        if (!fftPeriodOverride || fftPeriodOverride <= 0) {
+          setFftPeriodOverride(Math.round(res.periodT * 10) / 10)
+        }
       } else {
         const clicks: [number, number][] = [
           [manualPeak1, 0],
@@ -389,7 +403,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, waveType, squarePeriod, t])
+  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, waveType, squarePeriod, fftPeriodOverride, t])
 
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
@@ -917,19 +931,49 @@ export default function AnalysisPage() {
               className="w-32 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm disabled:opacity-50" />
           </div>
           {waveType === 'sine' ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">{t('analysis.mode')}</span>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="mode" value="Auto" checked={analysisMode === 'Auto'}
-                  onChange={() => setAnalysisMode('Auto')} className="accent-accent" />
-                <span className="text-sm">{t('analysis.auto')}</span>
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="mode" value="Manual" checked={analysisMode === 'Manual'}
-                  onChange={() => setAnalysisMode('Manual')} className="accent-accent" />
-                <span className="text-sm">{t('analysis.manual')}</span>
-              </label>
-            </div>
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium">{t('analysis.mode')}</span>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" name="mode" value="Auto" checked={analysisMode === 'Auto'}
+                    onChange={() => setAnalysisMode('Auto')} className="accent-accent" />
+                  <span className="text-sm">{t('analysis.modeAutoPeaks')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" name="mode" value="AutoHybrid" checked={analysisMode === 'AutoHybrid'}
+                    onChange={() => setAnalysisMode('AutoHybrid')} className="accent-accent" />
+                  <span className="text-sm">{t('analysis.modeAutoHybrid')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" name="mode" value="AutoFFT" checked={analysisMode === 'AutoFFT'}
+                    onChange={() => setAnalysisMode('AutoFFT')} className="accent-accent" />
+                  <span className="text-sm">{t('analysis.modeAutoFFT')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" name="mode" value="Manual" checked={analysisMode === 'Manual'}
+                    onChange={() => setAnalysisMode('Manual')} className="accent-accent" />
+                  <span className="text-sm">{t('analysis.manual')}</span>
+                </label>
+              </div>
+              {analysisMode === 'AutoFFT' && (
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">
+                    {t('analysis.fftPeriodOverride')}
+                  </label>
+                  <input
+                    type="number"
+                    value={fftPeriodOverride || ''}
+                    onChange={e => setFftPeriodOverride(Number(e.target.value))}
+                    step={0.1}
+                    placeholder="auto"
+                    className="w-32 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
+                  />
+                  <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                    {t('analysis.fftPeriodHint')}
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">

@@ -89,7 +89,7 @@ export function extractFourierFundamental(
 /**
  * Filter a (time, value) series to a [tMin, tMax] window.
  */
-function filterToRange(
+export function filterToRange(
   time: number[],
   value: number[],
   tMin: number,

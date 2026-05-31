@@ -145,6 +145,11 @@ export interface Translations {
     mode: string
     auto: string
     manual: string
+    modeAutoPeaks: string
+    modeAutoHybrid: string
+    modeAutoFFT: string
+    fftPeriodOverride: string
+    fftPeriodHint: string
     loadProcessFiles: string
     processing: string
     region: string
