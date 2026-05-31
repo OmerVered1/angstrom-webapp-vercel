@@ -15,6 +15,8 @@ export interface Analysis {
   amplitude_a2: number
   period_t: number
   frequency_f: number
+  period_t_resp?: number | null
+  frequency_f_resp?: number | null
   angular_freq_w: number
   raw_lag_dt: number
   raw_phase_phi: number

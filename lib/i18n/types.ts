@@ -169,6 +169,10 @@ export interface Translations {
     amplitudeA2: string
     periodT: string
     frequencyF: string
+    periodTSrc: string
+    periodTResp: string
+    frequencyFSrc: string
+    frequencyFResp: string
     angularFreq: string
     rawTimeLag: string
     rawPhase: string
@@ -232,6 +236,10 @@ export interface Translations {
     temperature: string
     periodT: string
     frequency: string
+    periodTSrc: string
+    periodTResp: string
+    frequencySrc: string
+    frequencyResp: string
     rawDt: string
     systemLag: string
     netDt: string
@@ -298,6 +306,10 @@ export interface Translations {
     groupCalibration: string
     groupAnalysisMode: string
     trend: string
+    periodSource: string
+    periodSourceSrc: string
+    periodSourceResp: string
+    periodSourceHint: string
   }
 
   /* ====================================================================== */

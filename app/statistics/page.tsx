@@ -20,6 +20,18 @@ const LITERATURE: Record<string, { alpha: number; color: string }> = {
   'Stainless Steel': { alpha: 4.0, color: '#717d7e' },
 }
 
+type PeriodSource = 'src' | 'resp'
+
+function getPeriod(a: Analysis, src: PeriodSource): number | null {
+  if (src === 'resp') return a.period_t_resp ?? null
+  return a.period_t
+}
+
+function getFrequency(a: Analysis, src: PeriodSource): number | null {
+  if (src === 'resp') return a.frequency_f_resp ?? null
+  return a.frequency_f
+}
+
 type YMetric = {
   key: string
   label: string
@@ -68,12 +80,21 @@ function tempBand(t: number): string {
   return '> 300 \u00B0C'
 }
 
-function groupValue(a: Analysis, groupBy: string): string {
+function groupValue(a: Analysis, groupBy: string, periodSource: PeriodSource): string | null {
   switch (groupBy) {
     case 'Model': return a.model_name
-    case 'Model + Period': return `${a.model_name} | ${Math.round(a.period_t / 10) * 10}s`
-    case 'Period (exact)': return `${Math.round(a.period_t / 10) * 10} s`
-    case 'Period Band': return periodBand(a.period_t)
+    case 'Model + Period': {
+      const p = getPeriod(a, periodSource)
+      return p != null ? `${a.model_name} | ${Math.round(p / 10) * 10}s` : null
+    }
+    case 'Period (exact)': {
+      const p = getPeriod(a, periodSource)
+      return p != null ? `${Math.round(p / 10) * 10} s` : null
+    }
+    case 'Period Band': {
+      const p = getPeriod(a, periodSource)
+      return p != null ? periodBand(p) : null
+    }
     case 'Temp Band': return tempBand(a.temperature_c ?? 25)
     case 'Calibration': return a.use_calibration ? 'Calibrated' : 'Uncalibrated'
     case 'Analysis Mode': return a.analysis_mode
@@ -81,10 +102,10 @@ function groupValue(a: Analysis, groupBy: string): string {
   }
 }
 
-function xValue(a: Analysis, xKey: string): number | null {
+function xValue(a: Analysis, xKey: string, periodSource: PeriodSource): number | null {
   switch (xKey) {
-    case 'Period (s)': return a.period_t
-    case 'Frequency (Hz)': return a.frequency_f
+    case 'Period (s)': return getPeriod(a, periodSource)
+    case 'Frequency (Hz)': return getFrequency(a, periodSource)
     case 'Temperature (\u00B0C)': return a.temperature_c ?? null
     case 'Raw \u0394t (s)': return a.raw_lag_dt
     case 'ln term': return a.ln_term
@@ -138,6 +159,9 @@ export default function StatisticsPage() {
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
   const [filterPeriods, setFilterPeriods] = useState<string[]>([])
 
+  // Period source for plots/groupings keyed on period or frequency
+  const [periodSource, setPeriodSource] = useState<PeriodSource>('src')
+
   // Alpha vs Period series selector
   const [selectedSeries, setSelectedSeries] = useState<string[]>(['combined_raw'])
   const [showLitAlpha, setShowLitAlpha] = useState(true)
@@ -190,20 +214,27 @@ export default function StatisticsPage() {
       showarrow: false, xanchor: 'left' as const, font: { color, size: 10 },
     })) : []
 
+    // Override Y extract when the Y metric is Period — follow the toggle.
+    const extractY = yMetric === 'period_t'
+      ? (a: Analysis) => getPeriod(a, periodSource)
+      : yMeta.extract
+
     if (chartType === 'scatter' || chartType === 'line') {
       // Scatter / Line with optional color grouping
       const groups = colorBy !== 'None'
-        ? Array.from(new Set(filtered.map(a => groupValue(a, colorBy))))
+        ? Array.from(new Set(filtered.map(a => groupValue(a, colorBy, periodSource)).filter((g): g is string => g != null)))
         : ['All']
 
       const traces: Plotly.Data[] = groups.map((grp, gi) => {
-        const subset = colorBy !== 'None' ? filtered.filter(a => groupValue(a, colorBy) === grp) : filtered
+        const subset = colorBy !== 'None' ? filtered.filter(a => groupValue(a, colorBy, periodSource) === grp) : filtered
         const points: { x: number; y: number; text: string }[] = []
         for (const a of subset) {
-          const xv = xValue(a, xAxis)
-          const yv = yMeta.extract(a)
+          const xv = xValue(a, xAxis, periodSource)
+          const yv = extractY(a)
           if (xv != null && yv != null) {
-            points.push({ x: xv, y: yv, text: `${a.model_name} | ${Math.round(a.period_t / 10) * 10}s | ${a.test_date}` })
+            const p = getPeriod(a, periodSource)
+            const pLabel = p != null ? `${Math.round(p / 10) * 10}s` : '—'
+            points.push({ x: xv, y: yv, text: `${a.model_name} | ${pLabel} | ${a.test_date}` })
           }
         }
         // Sort by x for line plots
@@ -255,10 +286,10 @@ export default function StatisticsPage() {
     }
 
     // Box / Violin / Bar
-    const groups = Array.from(new Set(filtered.map(a => groupValue(a, groupBy))))
+    const groups = Array.from(new Set(filtered.map(a => groupValue(a, groupBy, periodSource)).filter((g): g is string => g != null)))
     const traces: Plotly.Data[] = groups.map((grp, gi) => {
-      const subset = filtered.filter(a => groupValue(a, groupBy) === grp)
-      const vals = subset.map(a => yMeta.extract(a)).filter((v): v is number => v != null)
+      const subset = filtered.filter(a => groupValue(a, groupBy, periodSource) === grp)
+      const vals = subset.map(a => extractY(a)).filter((v): v is number => v != null)
 
       if (chartType === 'bar') {
         return {
@@ -292,7 +323,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, showLit, yMeta, logY, logX])
+  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, showLit, yMeta, logY, logX, periodSource])
 
   // ── Alpha vs Period by Model ──────────────────────────────────────────
 
@@ -310,7 +341,8 @@ export default function StatisticsPage() {
         const ys: number[] = []
         for (const a of subset) {
           const v = series.extract(a)
-          if (v != null) { xs.push(a.period_t); ys.push(v) }
+          const p = getPeriod(a, periodSource)
+          if (v != null && p != null) { xs.push(p); ys.push(v) }
         }
         if (xs.length === 0) return
         traces.push({
@@ -352,7 +384,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, selectedSeries, showLitAlpha, logY, logX])
+  }, [filtered, selectedSeries, showLitAlpha, logY, logX, periodSource])
 
   // ── Heat-loss indicators ──────────────────────────────────────────────
 
@@ -402,9 +434,12 @@ export default function StatisticsPage() {
 
     const makePlot = (title: string, yExtract: (a: Analysis) => number, yLabel: string) => {
       const traces: Plotly.Data[] = models.map((m, mi) => {
-        const subset = filtered.filter(a => a.model_name === m).sort((a, b) => a.period_t - b.period_t)
+        const subset = filtered
+          .filter(a => a.model_name === m && getPeriod(a, periodSource) != null)
+          .sort((a, b) => (getPeriod(a, periodSource) ?? 0) - (getPeriod(b, periodSource) ?? 0))
         return {
-          x: subset.map(a => a.period_t), y: subset.map(a => yExtract(a)),
+          x: subset.map(a => getPeriod(a, periodSource) as number),
+          y: subset.map(a => yExtract(a)),
           name: m, type: 'scatter' as const, mode: 'lines+markers' as const,
           marker: { color: COLORS[mi % COLORS.length], size: 6 },
           line: { color: COLORS[mi % COLORS.length], width: 1 },
@@ -421,7 +456,7 @@ export default function StatisticsPage() {
       makePlot('<b>Raw Phase \u03C6 vs Period</b>', a => a.raw_phase_phi, '\u03C6 (rad)'),
       makePlot('<b>Raw Time Lag \u0394t vs Period</b>', a => a.raw_lag_dt, '\u0394t (s)'),
     ]
-  }, [filtered, logY, logX])
+  }, [filtered, logY, logX, periodSource])
 
   // ── Temperature dependence ────────────────────────────────────────────
 
@@ -477,7 +512,7 @@ export default function StatisticsPage() {
       { label: 'A\u2081', extract: a => a.amplitude_a1 },
       { label: 'A\u2082', extract: a => a.amplitude_a2 },
       { label: 'A\u2081/A\u2082', extract: a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null },
-      { label: 'Period', extract: a => a.period_t },
+      { label: 'Period', extract: a => getPeriod(a, periodSource) },
       { label: '\u0394t', extract: a => a.raw_lag_dt },
       { label: '\u03C6', extract: a => a.raw_phase_phi },
       { label: 'ln term', extract: a => a.ln_term },
@@ -530,7 +565,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered])
+  }, [filtered, periodSource])
 
   // ── Summary stats by model ────────────────────────────────────────────
 
@@ -600,6 +635,32 @@ export default function StatisticsPage() {
         <p className="text-[var(--text-muted)]">{t('statistics.noDataRunFirst')}</p>
       ) : (
         <>
+          {/* ── Period source toggle ─────────────────────────────────────── */}
+          <div className="flex items-center gap-3 text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--bg-subtle)]">
+            <span className="font-medium">{t('statistics.periodSource')}:</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name="periodSource"
+                checked={periodSource === 'src'}
+                onChange={() => setPeriodSource('src')}
+              />
+              {t('statistics.periodSourceSrc')}
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name="periodSource"
+                checked={periodSource === 'resp'}
+                onChange={() => setPeriodSource('resp')}
+              />
+              {t('statistics.periodSourceResp')}
+            </label>
+            <span className="text-xs text-[var(--text-muted)] ml-auto">
+              {t('statistics.periodSourceHint')}
+            </span>
+          </div>
+
           {/* ── Filters ──────────────────────────────────────────────────── */}
           <div className="grid grid-cols-4 gap-4">
             <div>

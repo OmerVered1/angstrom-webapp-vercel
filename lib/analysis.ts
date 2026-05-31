@@ -31,6 +31,8 @@ export interface AnalysisResults {
   amplitudeA2: number
   periodT: number
   frequencyF: number
+  periodTResp: number | null
+  frequencyFResp: number | null
   angularFreqW: number
   rawLagDt: number
   rawPhasePhi: number
@@ -210,6 +212,9 @@ export function runAutoAnalysis(
   const T = meanDiff(peakTimesSrc)
   const w = (2 * Math.PI) / T
 
+  // Response period (diagnostic): mean diff between response peaks, if enough peaks
+  const tResp = strongCal.length >= 2 ? meanDiff(strongCal.map(i => tCal[i])) : null
+
   // Time lag between first source and first response peak
   let tsFirst = tSrc[strongSrc[0]]
   let tsSecond = tSrc[strongSrc[1]]
@@ -228,6 +233,8 @@ export function runAutoAnalysis(
 
   // Mean peak/trough levels for visualization — only use troughs between consecutive peaks
   const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
+  result.periodTResp = tResp && isFinite(tResp) && tResp > 0 ? tResp : null
+  result.frequencyFResp = result.periodTResp ? 1 / result.periodTResp : null
   result.meanPeakSrc = meanOfIndices(vSrc, strongSrc)
   result.meanTroughSrc = meanTroughBetweenPeaks(vSrc, strongSrc)
   result.meanPeakCal = meanOfIndices(vCal, strongCal)
@@ -277,8 +284,13 @@ export function runManualAnalysis(
   const a1 = computeCycleAmplitude(vSrc, useSrcPeaks)
   const a2 = computeCycleAmplitude(vCal, useCalPeaks)
 
+  // Response period (diagnostic): auto-detect from response peaks, independent of clicks
+  const tResp = useCalPeaks.length >= 2 ? meanDiff(useCalPeaks.map(i => tCal[i])) : null
+
   // Mean peak/trough levels for visualization — only troughs between consecutive peaks
   const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
+  result.periodTResp = tResp && isFinite(tResp) && tResp > 0 ? tResp : null
+  result.frequencyFResp = result.periodTResp ? 1 / result.periodTResp : null
   result.meanPeakSrc = meanOfIndices(vSrc, useSrcPeaks)
   result.meanTroughSrc = meanTroughBetweenPeaks(vSrc, useSrcPeaks)
   result.meanPeakCal = meanOfIndices(vCal, useCalPeaks)
@@ -340,6 +352,8 @@ export function calculateThermalDiffusivity(
     amplitudeA2: a2,
     periodT: T,
     frequencyF: 1 / T,
+    periodTResp: null,
+    frequencyFResp: null,
     angularFreqW: w,
     rawLagDt: Math.abs(dt),
     rawPhasePhi: phi,

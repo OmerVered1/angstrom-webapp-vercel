@@ -165,7 +165,11 @@ export function runSquareAnalysis(
   const secondSrcEdge = firstSrcEdge + period
   const respMarker = firstSrcEdge + lagDt
 
-  return calculateThermalDiffusivity(
+  // Response period (diagnostic): detect rising edges on the response signal
+  const respPeriodRaw = detectSquarePeriod(cal.t, cal.v)
+  const respPeriod = isFinite(respPeriodRaw) && respPeriodRaw > 0 ? respPeriodRaw : null
+
+  const result = calculateThermalDiffusivity(
     srcFFT.amplitude,
     calFFT.amplitude,
     period,
@@ -178,4 +182,7 @@ export function runSquareAnalysis(
     secondSrcEdge,
     respMarker,
   )
+  result.periodTResp = respPeriod
+  result.frequencyFResp = respPeriod ? 1 / respPeriod : null
+  return result
 }
