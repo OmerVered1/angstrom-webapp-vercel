@@ -18,7 +18,10 @@ const LITERATURE: Record<string, { alpha: number; color: string }> = {
   Al: { alpha: 64.0, color: '#d68910' },
   Brass: { alpha: 34.1, color: '#b7950b' },
   'Stainless Steel': { alpha: 4.0, color: '#717d7e' },
+  'Al₂O₃': { alpha: 8.0, color: '#2874a6' },
 }
+
+const LIT_MATERIALS = Object.keys(LITERATURE)
 
 type PeriodSource = 'src' | 'resp'
 
@@ -150,7 +153,7 @@ export default function StatisticsPage() {
   const [groupBy, setGroupBy] = useState('Model')
   const [xAxis, setXAxis] = useState('Period (s)')
   const [colorBy, setColorBy] = useState('None')
-  const [showLit, setShowLit] = useState(false)
+  const [litMaterials, setLitMaterials] = useState<string[]>([])
   const [logY, setLogY] = useState(false)
   const [logX, setLogX] = useState(false)
 
@@ -164,7 +167,7 @@ export default function StatisticsPage() {
 
   // Alpha vs Period series selector
   const [selectedSeries, setSelectedSeries] = useState<string[]>(['combined_raw'])
-  const [showLitAlpha, setShowLitAlpha] = useState(true)
+  const [litMaterialsAlpha, setLitMaterialsAlpha] = useState<string[]>(LIT_MATERIALS)
 
   const fetchData = useCallback(async () => {
     if (!isConfigured) { setLoading(false); return }
@@ -203,16 +206,18 @@ export default function StatisticsPage() {
   const chartBuilderPlot = useMemo(() => {
     if (filtered.length === 0) return null
 
-    const litShapes = (showLit && yMeta.isAlpha) ? Object.entries(LITERATURE).map(([name, { alpha, color }]) => ({
+    const litEntries = yMeta.isAlpha ? Object.entries(LITERATURE).filter(([name]) => litMaterials.includes(name)) : []
+
+    const litShapes = litEntries.map(([, { alpha, color }]) => ({
       type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
       y0: alpha, y1: alpha,
       line: { color, dash: 'dash' as const, width: 1.5 },
-    })) : []
+    }))
 
-    const litAnnotations = (showLit && yMeta.isAlpha) ? Object.entries(LITERATURE).map(([name, { alpha, color }]) => ({
+    const litAnnotations = litEntries.map(([name, { alpha, color }]) => ({
       x: 1, xref: 'paper' as const, y: alpha, text: name,
       showarrow: false, xanchor: 'left' as const, font: { color, size: 10 },
-    })) : []
+    }))
 
     // Override Y extract when the Y metric is Period — follow the toggle.
     const extractY = yMetric === 'period_t'
@@ -323,7 +328,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, showLit, yMeta, logY, logX, periodSource])
+  }, [filtered, yMetric, chartType, groupBy, xAxis, colorBy, litMaterials, yMeta, logY, logX, periodSource])
 
   // ── Alpha vs Period by Model ──────────────────────────────────────────
 
@@ -359,16 +364,18 @@ export default function StatisticsPage() {
 
     const seriesLabels = activeSeries.map(s => s.label).join(', ')
 
-    const litShapes = showLitAlpha ? Object.entries(LITERATURE).map(([, { alpha, color }]) => ({
+    const litEntriesAlpha = Object.entries(LITERATURE).filter(([name]) => litMaterialsAlpha.includes(name))
+
+    const litShapes = litEntriesAlpha.map(([, { alpha, color }]) => ({
       type: 'line' as const, x0: 0, x1: 1, xref: 'paper' as const,
       y0: alpha, y1: alpha,
       line: { color, dash: 'dash' as const, width: 1.5 },
-    })) : []
+    }))
 
-    const litAnn = showLitAlpha ? Object.entries(LITERATURE).map(([name, { alpha, color }]) => ({
+    const litAnn = litEntriesAlpha.map(([name, { alpha, color }]) => ({
       x: 1, xref: 'paper' as const, y: alpha, text: name,
       showarrow: false, xanchor: 'left' as const, font: { color, size: 10 },
-    })) : []
+    }))
 
     return {
       data: traces,
@@ -384,7 +391,7 @@ export default function StatisticsPage() {
       },
       config: { responsive: true },
     }
-  }, [filtered, selectedSeries, showLitAlpha, logY, logX, periodSource])
+  }, [filtered, selectedSeries, litMaterialsAlpha, logY, logX, periodSource])
 
   // ── Heat-loss indicators ──────────────────────────────────────────────
 
@@ -742,11 +749,21 @@ export default function StatisticsPage() {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={showLit} onChange={e => setShowLit(e.target.checked)} className="accent-accent" />
-                <span className="text-sm">{t('statistics.showLitRef')}</span>
-              </label>
+            <div className="flex items-center gap-6 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium">{t('statistics.showLitRef')}:</span>
+                {LIT_MATERIALS.map(name => (
+                  <label key={name} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={litMaterials.includes(name)}
+                      onChange={e => setLitMaterials(prev => e.target.checked ? [...prev, name] : prev.filter(n => n !== name))}
+                      style={{ accentColor: LITERATURE[name].color }}
+                    />
+                    <span className="text-sm">{name}</span>
+                  </label>
+                ))}
+              </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={logX} onChange={e => setLogX(e.target.checked)} className="accent-accent" />
                 <span className="text-sm">Log X-axis</span>
@@ -788,10 +805,18 @@ export default function StatisticsPage() {
                 </label>
               ))}
               <span className="mx-2 text-[var(--border)]">|</span>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={showLitAlpha} onChange={e => setShowLitAlpha(e.target.checked)} className="accent-accent" />
-                <span className="text-sm">{t('statistics.litRefLines')}</span>
-              </label>
+              <span className="text-sm font-medium">{t('statistics.litRefLines')}</span>
+              {LIT_MATERIALS.map(name => (
+                <label key={name} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={litMaterialsAlpha.includes(name)}
+                    onChange={e => setLitMaterialsAlpha(prev => e.target.checked ? [...prev, name] : prev.filter(n => n !== name))}
+                    style={{ accentColor: LITERATURE[name].color }}
+                  />
+                  <span className="text-sm">{name}</span>
+                </label>
+              ))}
             </div>
             {alphaVsPeriodPlot && (
               <PlotlyChart
