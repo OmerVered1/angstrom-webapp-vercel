@@ -161,6 +161,8 @@ export default function StatisticsPage() {
   const [filterModels, setFilterModels] = useState<string[]>([])
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
   const [filterPeriods, setFilterPeriods] = useState<string[]>([])
+  const [filterSourceDevices, setFilterSourceDevices] = useState<string[]>([])
+  const [filterResponseDevices, setFilterResponseDevices] = useState<string[]>([])
 
   // Period source for plots/groupings keyed on period or frequency
   const [periodSource, setPeriodSource] = useState<PeriodSource>('src')
@@ -183,6 +185,8 @@ export default function StatisticsPage() {
 
   const allModels = useMemo(() => Array.from(new Set(analyses.map(a => a.model_name))), [analyses])
   const allPeriods = useMemo(() => Array.from(new Set(analyses.map(a => Math.round(a.period_t / 10) * 10 + ' s'))).sort(), [analyses])
+  const allSourceDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_source_device).filter((d): d is string => !!d))).sort(), [analyses])
+  const allResponseDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_response_device).filter((d): d is string => !!d))).sort(), [analyses])
 
   const filtered = useMemo(() => {
     return analyses.filter(a => {
@@ -190,9 +194,11 @@ export default function StatisticsPage() {
       if (filterCal === 'Calibrated' && !a.use_calibration) return false
       if (filterCal === 'Uncalibrated' && a.use_calibration) return false
       if (filterPeriods.length > 0 && !filterPeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
+      if (filterSourceDevices.length > 0 && !(a.power_source_device && filterSourceDevices.includes(a.power_source_device))) return false
+      if (filterResponseDevices.length > 0 && !(a.power_response_device && filterResponseDevices.includes(a.power_response_device))) return false
       return true
     })
-  }, [analyses, filterModels, filterCal, filterPeriods])
+  }, [analyses, filterModels, filterCal, filterPeriods, filterSourceDevices, filterResponseDevices])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -675,6 +681,22 @@ export default function StatisticsPage() {
               <select multiple value={filterModels} onChange={e => setFilterModels(Array.from(e.target.selectedOptions).map(o => o.value))}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allModels.map(m => <option key={m}>{m}</option>)}
+              </select>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerSourceDevice')}</label>
+              <select multiple value={filterSourceDevices} onChange={e => setFilterSourceDevices(Array.from(e.target.selectedOptions).map(o => o.value))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
+                {allSourceDevices.map(d => <option key={d}>{d}</option>)}
+              </select>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerResponseDevice')}</label>
+              <select multiple value={filterResponseDevices} onChange={e => setFilterResponseDevices(Array.from(e.target.selectedOptions).map(o => o.value))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
+                {allResponseDevices.map(d => <option key={d}>{d}</option>)}
               </select>
               <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
             </div>
