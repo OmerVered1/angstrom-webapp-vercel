@@ -682,7 +682,10 @@ export default function StatisticsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allModels.map(m => <option key={m}>{m}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+                <button type="button" onClick={() => setFilterModels([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerSourceDevice')}</label>
@@ -690,7 +693,10 @@ export default function StatisticsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allSourceDevices.map(d => <option key={d}>{d}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+                <button type="button" onClick={() => setFilterSourceDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerResponseDevice')}</label>
@@ -698,7 +704,10 @@ export default function StatisticsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allResponseDevices.map(d => <option key={d}>{d}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+                <button type="button" onClick={() => setFilterResponseDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.calibration')}</label>
@@ -713,7 +722,10 @@ export default function StatisticsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
                 {allPeriods.map(p => <option key={p}>{p}</option>)}
               </select>
-              <p className="text-xs text-[var(--text-muted)] mt-1">{t('common.holdCtrlMultiSelect')}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+                <button type="button" onClick={() => setFilterPeriods([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
             </div>
             <div className="flex items-end">
               <p className="text-sm text-[var(--text-muted)]">{filtered.length} {t('common.analysesSelected')}</p>
