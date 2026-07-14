@@ -7,6 +7,7 @@ export interface Analysis {
   temperature_c?: number
   power_source_device?: string
   power_response_device?: string
+  gas_atmosphere?: string
   wave_type?: 'sine' | 'square'
   analysis_mode: string
   r1_mm: number

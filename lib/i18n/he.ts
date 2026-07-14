@@ -35,6 +35,7 @@ export const he: Translations = {
     analysesSelected: 'ניתוחים נבחרו',
     holdCtrlMultiSelect: 'החזק Cmd/Ctrl לבחירה מרובה',
     none: 'ללא',
+    other: 'אחר',
   },
 
   /* ====================================================================== */
@@ -131,6 +132,8 @@ export const he: Translations = {
     outerRadius: 'רדיוס חיצוני r\u2082 (מ"מ)',
     powerSourceDevice: 'מכשיר מקור הספק',
     powerResponseDevice: 'מכשיר תגובת הספק',
+    gasAtmosphere: 'אטמוספירת גז',
+    gasAtmosphereOther: 'ציין אטמוספירה',
     setup: 'תצורה',
     selectSetup: '— בחר תצורה —',
     saveAsSetup: 'שמור כתצורה חדשה…',
@@ -252,6 +255,7 @@ export const he: Translations = {
     testDate: 'תאריך בדיקה',
     radii: 'רדיוסים',
     temperature: 'טמפרטורה',
+    gasAtmosphere: 'אטמוספירת גז',
     periodT: 'מחזור T',
     frequency: 'תדירות',
     periodTSrc: 'מחזור T (מקור)',

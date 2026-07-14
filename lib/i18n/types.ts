@@ -32,6 +32,7 @@ export interface Translations {
     analysesSelected: string
     holdCtrlMultiSelect: string
     none: string
+    other: string
   }
 
   /* ====================================================================== */
@@ -123,6 +124,8 @@ export interface Translations {
     outerRadius: string
     powerSourceDevice: string
     powerResponseDevice: string
+    gasAtmosphere: string
+    gasAtmosphereOther: string
     setup: string
     selectSetup: string
     saveAsSetup: string
@@ -239,6 +242,7 @@ export interface Translations {
     testDate: string
     radii: string
     temperature: string
+    gasAtmosphere: string
     periodT: string
     frequency: string
     periodTSrc: string

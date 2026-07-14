@@ -12,6 +12,7 @@ const DISPLAY_COLS: { key: keyof Analysis; label: string; fmt?: (v: unknown) => 
   { key: 'model_name', label: 'Model', editable: true },
   { key: 'test_date', label: 'Date', editable: true },
   { key: 'temperature_c', label: 'T (\u00B0C)', fmt: v => v != null ? Number(v).toFixed(1) : '25.0', editable: true },
+  { key: 'gas_atmosphere', label: 'Atmosphere', fmt: v => v != null && v !== '' ? String(v) : '\u2014', editable: true },
   { key: 'analysis_mode', label: 'Mode', editable: true },
   { key: 'r1_mm', label: 'r\u2081 (mm)', fmt: v => Number(v).toFixed(2), editable: true },
   { key: 'r2_mm', label: 'r\u2082 (mm)', fmt: v => Number(v).toFixed(2), editable: true },

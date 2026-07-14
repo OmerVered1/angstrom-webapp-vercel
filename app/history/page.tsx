@@ -252,6 +252,7 @@ export default function HistoryPage() {
                         [t('history.testDate'), selected.test_date],
                         [t('history.radii'), `r\u2081=${selected.r1_mm}mm, r\u2082=${selected.r2_mm}mm`],
                         [t('history.temperature'), `${selected.temperature_c ?? 25}\u00B0C`],
+                        [t('history.gasAtmosphere'), selected.gas_atmosphere && selected.gas_atmosphere !== '' ? selected.gas_atmosphere : '\u2014'],
                         [t('history.periodTSrc'), `${safe(selected.period_t, 2)}s`],
                         [t('history.periodTResp'), selected.period_t_resp != null ? `${safe(selected.period_t_resp, 2)}s` : '—'],
                         [t('history.frequencySrc'), `${safe(selected.frequency_f, 5)}Hz`],

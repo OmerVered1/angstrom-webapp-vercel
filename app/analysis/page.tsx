@@ -57,6 +57,9 @@ function extractSampleName(filename: string): string | null {
   return null
 }
 
+// Preset gas atmospheres for the analysis form (plus free-text "Other").
+const GAS_ATMOSPHERES = ['Air', 'N₂', 'Ar', 'He', 'CO₂', 'Vacuum']
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -95,6 +98,7 @@ export default function AnalysisPage() {
   const [r2, setR2] = useState(14.86)
   const [powerSourceDevice, setPowerSourceDevice] = useState('Keithley 2450')
   const [powerResponseDevice, setPowerResponseDevice] = useState('C80 Calvet')
+  const [gasAtmosphere, setGasAtmosphere] = useState('Air')
   const [useCalibration, setUseCalibration] = useState(true)
 
   // Setups (saved configurations)
@@ -553,6 +557,7 @@ export default function AnalysisPage() {
         temperature_c: temperature,
         power_source_device: powerSourceDevice,
         power_response_device: powerResponseDevice,
+        gas_atmosphere: gasAtmosphere,
         wave_type: waveType,
         analysis_mode: waveType === 'square' ? 'Fourier' : analysisMode,
         r1_mm: r1,
@@ -591,7 +596,7 @@ export default function AnalysisPage() {
     } finally {
       setSaving(false)
     }
-  }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, waveType, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
+  }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, gasAtmosphere, waveType, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -881,6 +886,27 @@ export default function AnalysisPage() {
             <input type="text" value={powerResponseDevice} onChange={e => setPowerResponseDevice(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.gasAtmosphere')}</label>
+            <select
+              value={GAS_ATMOSPHERES.includes(gasAtmosphere) ? gasAtmosphere : 'Other'}
+              onChange={e => setGasAtmosphere(e.target.value === 'Other' ? '' : e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
+              {GAS_ATMOSPHERES.map(g => <option key={g} value={g}>{g}</option>)}
+              <option value="Other">{t('common.other')}</option>
+            </select>
+          </div>
+          {!GAS_ATMOSPHERES.includes(gasAtmosphere) && (
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.gasAtmosphereOther')}</label>
+              <input type="text" value={gasAtmosphere} onChange={e => setGasAtmosphere(e.target.value)}
+                placeholder="e.g. SF₆, 5% H₂/N₂"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

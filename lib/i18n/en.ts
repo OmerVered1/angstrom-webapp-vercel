@@ -35,6 +35,7 @@ export const en: Translations = {
     analysesSelected: 'analyses selected',
     holdCtrlMultiSelect: 'Hold Cmd/Ctrl to multi-select',
     none: 'None',
+    other: 'Other',
   },
 
   /* ====================================================================== */
@@ -131,6 +132,8 @@ export const en: Translations = {
     outerRadius: 'Outer Radius r\u2082 (mm)',
     powerSourceDevice: 'Power Source Device',
     powerResponseDevice: 'Power Response Device',
+    gasAtmosphere: 'Gas Atmosphere',
+    gasAtmosphereOther: 'Specify atmosphere',
     setup: 'Setup',
     selectSetup: '\u2014 Select setup \u2014',
     saveAsSetup: 'Save current as setup\u2026',
@@ -252,6 +255,7 @@ export const en: Translations = {
     testDate: 'Test Date',
     radii: 'Radii',
     temperature: 'Temperature',
+    gasAtmosphere: 'Gas Atmosphere',
     periodT: 'Period T',
     frequency: 'Frequency',
     periodTSrc: 'Source Period T',
