@@ -163,6 +163,7 @@ export default function StatisticsPage() {
   const [filterPeriods, setFilterPeriods] = useState<string[]>([])
   const [filterSourceDevices, setFilterSourceDevices] = useState<string[]>([])
   const [filterResponseDevices, setFilterResponseDevices] = useState<string[]>([])
+  const [filterGasAtmospheres, setFilterGasAtmospheres] = useState<string[]>([])
 
   // Period source for plots/groupings keyed on period or frequency
   const [periodSource, setPeriodSource] = useState<PeriodSource>('src')
@@ -187,6 +188,7 @@ export default function StatisticsPage() {
   const allPeriods = useMemo(() => Array.from(new Set(analyses.map(a => Math.round(a.period_t / 10) * 10 + ' s'))).sort(), [analyses])
   const allSourceDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_source_device).filter((d): d is string => !!d))).sort(), [analyses])
   const allResponseDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_response_device).filter((d): d is string => !!d))).sort(), [analyses])
+  const allGasAtmospheres = useMemo(() => Array.from(new Set(analyses.map(a => a.gas_atmosphere).filter((g): g is string => !!g))).sort(), [analyses])
 
   const filtered = useMemo(() => {
     return analyses.filter(a => {
@@ -196,9 +198,10 @@ export default function StatisticsPage() {
       if (filterPeriods.length > 0 && !filterPeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
       if (filterSourceDevices.length > 0 && !(a.power_source_device && filterSourceDevices.includes(a.power_source_device))) return false
       if (filterResponseDevices.length > 0 && !(a.power_response_device && filterResponseDevices.includes(a.power_response_device))) return false
+      if (filterGasAtmospheres.length > 0 && !(a.gas_atmosphere && filterGasAtmospheres.includes(a.gas_atmosphere))) return false
       return true
     })
-  }, [analyses, filterModels, filterCal, filterPeriods, filterSourceDevices, filterResponseDevices])
+  }, [analyses, filterModels, filterCal, filterPeriods, filterSourceDevices, filterResponseDevices, filterGasAtmospheres])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -707,6 +710,17 @@ export default function StatisticsPage() {
               <div className="flex items-center justify-between mt-1">
                 <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
                 <button type="button" onClick={() => setFilterResponseDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.gasAtmosphere')}</label>
+              <select multiple value={filterGasAtmospheres} onChange={e => setFilterGasAtmospheres(Array.from(e.target.selectedOptions).map(o => o.value))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
+                {allGasAtmospheres.map(g => <option key={g}>{g}</option>)}
+              </select>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+                <button type="button" onClick={() => setFilterGasAtmospheres([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
