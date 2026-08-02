@@ -157,6 +157,17 @@ export default function AnalysesViewerPage() {
       const sourceColor = COLORS[(2 * i) % COLORS.length]
       const responseColor = COLORS[(2 * i + 1) % COLORS.length]
 
+      // Always-visible value box (pinned to the plot corner, so it survives
+      // zoom/pan): Δt, A₁, A₂ straight from the stored results.
+      if (showGuides) {
+        annotations.push({
+          xref: 'paper', yref: 'paper', x: 0.01, y: 0.98 - i * 0.06,
+          xanchor: 'left', yanchor: 'top', align: 'left',
+          text: `${a.model_name} #${a.id}:  Δt=${numOrDash(a.raw_lag_dt, 0)} s · A₁=${numOrDash(a.amplitude_a1, 1)} · A₂=${numOrDash(a.amplitude_a2, 1)} mW`,
+          showarrow: false, font: { color: sourceColor, size: 11 }, bgcolor: 'rgba(255,255,255,0.8)',
+        })
+      }
+
       const raw = a.graph_image ?? a.graph_json
       if (!raw || typeof raw !== 'string' || !raw.trimStart().startsWith('{')) { noWaveform.push(labelOf(a)); return }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,7 +248,7 @@ export default function AnalysesViewerPage() {
           sorted.forEach((y, k) => {
             const name = k === 0 ? `${tag} peak` : `${tag} trough`
             shapes.push({ type: 'line', x0: transformX(x0), x1: rightX, y0: y, y1: y, line: { color, dash: 'dot', width: 1.5 } })
-            if (label) annotations.push({ x: rightX, y, xanchor: 'left', text: `  ${name}`, showarrow: false, font: { color, size: 10 }, bgcolor: 'rgba(255,255,255,0.75)' })
+            if (label) annotations.push({ x: rightX, y, xanchor: 'left', text: `  ${name} (${numOrDash(y, 1)} mW)`, showarrow: false, font: { color, size: 10 }, bgcolor: 'rgba(255,255,255,0.75)' })
           })
         }
         if (showSrc) drawLevels(srcLevels, sourceColor, 'A₁')
@@ -250,7 +261,7 @@ export default function AnalysesViewerPage() {
           if (label && text) annotations.push({ x: tx, y: 1.02, yref: 'paper', text, showarrow: false, font: { color, size: 10 }, bgcolor: 'rgba(255,255,255,0.75)' })
         }
         if (showSrc) srcMarkers.forEach((x, k) => drawMarker(x, sourceColor, k === 0 ? 'Src peak' : ''))
-        if (showResp) respMarkers.forEach(x => drawMarker(x, responseColor, 'Resp peak (Δt)'))
+        if (showResp) respMarkers.forEach(x => drawMarker(x, responseColor, `Resp peak (Δt=${numOrDash(a.raw_lag_dt, 0)}s)`))
       }
     })
 
