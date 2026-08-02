@@ -334,6 +334,8 @@ export const en: Translations = {
     calibrated: 'Calibrated',
     uncalibrated: 'Uncalibrated',
     periods: 'Periods',
+    periodRange: 'Range',
+    noPeriodsInRange: 'No periods in range',
     downloadStatsCsv: 'Download Statistics (CSV)',
     mean: 'Mean',
     std: 'Std',

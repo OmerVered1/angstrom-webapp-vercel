@@ -320,6 +320,8 @@ export interface Translations {
     calibrated: string
     uncalibrated: string
     periods: string
+    periodRange: string
+    noPeriodsInRange: string
     downloadStatsCsv: string
     mean: string
     std: string

@@ -138,6 +138,33 @@ function std(arr: number[]): number {
   return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length)
 }
 
+// Scrollable checkbox list used for the multi-select filters.
+// Empty selection means "no filter" (all values pass) — matches the filter logic.
+function CheckboxList({ options, selected, onChange, empty }: {
+  options: string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  empty?: string
+}) {
+  return (
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--bg)] h-28 overflow-y-auto">
+      {options.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)] px-2 py-1.5">{empty ?? '—'}</p>
+      ) : options.map(o => (
+        <label key={o} className="flex items-center gap-2 px-2 py-1 text-sm cursor-pointer hover:bg-[var(--bg-secondary)]">
+          <input
+            type="checkbox"
+            className="accent-accent"
+            checked={selected.includes(o)}
+            onChange={e => onChange(e.target.checked ? [...selected, o] : selected.filter(x => x !== o))}
+          />
+          <span className="truncate">{o}</span>
+        </label>
+      ))}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -161,6 +188,7 @@ export default function StatisticsPage() {
   const [filterModels, setFilterModels] = useState<string[]>([])
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
   const [filterPeriods, setFilterPeriods] = useState<string[]>([])
+  const [periodRange, setPeriodRange] = useState<[number, number] | null>(null)
   const [filterSourceDevices, setFilterSourceDevices] = useState<string[]>([])
   const [filterResponseDevices, setFilterResponseDevices] = useState<string[]>([])
   const [filterGasAtmospheres, setFilterGasAtmospheres] = useState<string[]>([])
@@ -185,23 +213,58 @@ export default function StatisticsPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   const allModels = useMemo(() => Array.from(new Set(analyses.map(a => a.model_name))), [analyses])
-  const allPeriods = useMemo(() => Array.from(new Set(analyses.map(a => Math.round(a.period_t / 10) * 10 + ' s'))).sort(), [analyses])
+  const allPeriods = useMemo(() => Array.from(new Set(analyses.map(a => Math.round(a.period_t / 10) * 10 + ' s')))
+    .sort((a, b) => parseFloat(a) - parseFloat(b)), [analyses])
   const allSourceDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_source_device).filter((d): d is string => !!d))).sort(), [analyses])
   const allResponseDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_response_device).filter((d): d is string => !!d))).sort(), [analyses])
   const allGasAtmospheres = useMemo(() => Array.from(new Set(analyses.map(a => a.gas_atmosphere).filter((g): g is string => !!g))).sort(), [analyses])
+
+  // Numeric [min, max] period domain for the range slider.
+  const periodDomain = useMemo<[number, number] | null>(() => {
+    const ps = analyses.map(a => Math.round(a.period_t / 10) * 10).filter(p => isFinite(p))
+    if (ps.length === 0) return null
+    return [Math.min(...ps), Math.max(...ps)]
+  }, [analyses])
+
+  // Initialise the range to the full domain once data loads.
+  useEffect(() => {
+    if (periodDomain && periodRange == null) setPeriodRange(periodDomain)
+  }, [periodDomain, periodRange])
+
+  // Update the range and drop any checked periods that fall outside it.
+  const applyPeriodRange = useCallback((next: [number, number]) => {
+    setPeriodRange(next)
+    setFilterPeriods(prev => prev.filter(p => {
+      const v = parseFloat(p)
+      return v >= next[0] && v <= next[1]
+    }))
+  }, [])
+
+  // Period checkboxes limited to the slider range.
+  const visiblePeriods = useMemo(() => {
+    if (!periodRange) return allPeriods
+    return allPeriods.filter(p => {
+      const v = parseFloat(p)
+      return v >= periodRange[0] && v <= periodRange[1]
+    })
+  }, [allPeriods, periodRange])
 
   const filtered = useMemo(() => {
     return analyses.filter(a => {
       if (filterModels.length > 0 && !filterModels.includes(a.model_name)) return false
       if (filterCal === 'Calibrated' && !a.use_calibration) return false
       if (filterCal === 'Uncalibrated' && a.use_calibration) return false
+      if (periodRange) {
+        const pv = Math.round(a.period_t / 10) * 10
+        if (pv < periodRange[0] || pv > periodRange[1]) return false
+      }
       if (filterPeriods.length > 0 && !filterPeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
       if (filterSourceDevices.length > 0 && !(a.power_source_device && filterSourceDevices.includes(a.power_source_device))) return false
       if (filterResponseDevices.length > 0 && !(a.power_response_device && filterResponseDevices.includes(a.power_response_device))) return false
       if (filterGasAtmospheres.length > 0 && !(a.gas_atmosphere && filterGasAtmospheres.includes(a.gas_atmosphere))) return false
       return true
     })
-  }, [analyses, filterModels, filterCal, filterPeriods, filterSourceDevices, filterResponseDevices, filterGasAtmospheres])
+  }, [analyses, filterModels, filterCal, periodRange, filterPeriods, filterSourceDevices, filterResponseDevices, filterGasAtmospheres])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -681,45 +744,29 @@ export default function StatisticsPage() {
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.models')}</label>
-              <select multiple value={filterModels} onChange={e => setFilterModels(Array.from(e.target.selectedOptions).map(o => o.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
-                {allModels.map(m => <option key={m}>{m}</option>)}
-              </select>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+              <CheckboxList options={allModels} selected={filterModels} onChange={setFilterModels} />
+              <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setFilterModels([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerSourceDevice')}</label>
-              <select multiple value={filterSourceDevices} onChange={e => setFilterSourceDevices(Array.from(e.target.selectedOptions).map(o => o.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
-                {allSourceDevices.map(d => <option key={d}>{d}</option>)}
-              </select>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+              <CheckboxList options={allSourceDevices} selected={filterSourceDevices} onChange={setFilterSourceDevices} />
+              <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setFilterSourceDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerResponseDevice')}</label>
-              <select multiple value={filterResponseDevices} onChange={e => setFilterResponseDevices(Array.from(e.target.selectedOptions).map(o => o.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
-                {allResponseDevices.map(d => <option key={d}>{d}</option>)}
-              </select>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+              <CheckboxList options={allResponseDevices} selected={filterResponseDevices} onChange={setFilterResponseDevices} />
+              <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setFilterResponseDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.gasAtmosphere')}</label>
-              <select multiple value={filterGasAtmospheres} onChange={e => setFilterGasAtmospheres(Array.from(e.target.selectedOptions).map(o => o.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
-                {allGasAtmospheres.map(g => <option key={g}>{g}</option>)}
-              </select>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+              <CheckboxList options={allGasAtmospheres} selected={filterGasAtmospheres} onChange={setFilterGasAtmospheres} />
+              <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setFilterGasAtmospheres([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
@@ -732,12 +779,22 @@ export default function StatisticsPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.periods')}</label>
-              <select multiple value={filterPeriods} onChange={e => setFilterPeriods(Array.from(e.target.selectedOptions).map(o => o.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-20">
-                {allPeriods.map(p => <option key={p}>{p}</option>)}
-              </select>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
+              <CheckboxList options={visiblePeriods} selected={filterPeriods} onChange={setFilterPeriods} empty={t('statistics.noPeriodsInRange')} />
+              {periodDomain && periodRange && periodDomain[0] < periodDomain[1] && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span>{t('statistics.periodRange')}</span>
+                    <span>{periodRange[0]}–{periodRange[1]} s</span>
+                  </div>
+                  <input type="range" min={periodDomain[0]} max={periodDomain[1]} step={10} value={periodRange[0]}
+                    onChange={e => applyPeriodRange([Math.min(Number(e.target.value), periodRange[1]), periodRange[1]])}
+                    className="w-full accent-accent" />
+                  <input type="range" min={periodDomain[0]} max={periodDomain[1]} step={10} value={periodRange[1]}
+                    onChange={e => applyPeriodRange([periodRange[0], Math.max(Number(e.target.value), periodRange[0])])}
+                    className="w-full accent-accent" />
+                </div>
+              )}
+              <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setFilterPeriods([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>

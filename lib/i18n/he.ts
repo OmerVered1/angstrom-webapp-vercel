@@ -334,6 +334,8 @@ export const he: Translations = {
     calibrated: 'מכויל',
     uncalibrated: 'לא מכויל',
     periods: 'מחזורים',
+    periodRange: 'טווח',
+    noPeriodsInRange: 'אין מחזורים בטווח',
     downloadStatsCsv: 'הורדת סטטיסטיקה (CSV)',
     mean: 'ממוצע',
     std: 'סטיית תקן',
