@@ -22,6 +22,8 @@ function labelOf(a: Analysis): string {
   if (a.temperature_c != null) parts.push(`${a.temperature_c}°C`)
   if (a.gas_atmosphere) parts.push(a.gas_atmosphere)
   parts.push(a.analysis_mode)
+  if (a.amplitude_a1 != null && isFinite(a.amplitude_a1)) parts.push(`A₁=${a.amplitude_a1.toFixed(1)}mW`)
+  if (a.period_t != null && isFinite(a.period_t)) parts.push(`T=${a.period_t.toFixed(0)}s`)
   return `${parts.join(' | ')} #${a.id}`
 }
 
@@ -100,10 +102,12 @@ export default function AnalysesViewerPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  // Up to 4 comparison slots; each holds an analysis id ('' = empty).
+  const [slots, setSlots] = useState<(number | '')[]>(['', '', '', ''])
   const [signalMode, setSignalMode] = useState<SignalMode>('both')
   const [alignStart, setAlignStart] = useState(true)
   const [normalizeAmp, setNormalizeAmp] = useState(false)
+  const [normalizeTime, setNormalizeTime] = useState(false)
   const [showGuides, setShowGuides] = useState(true)
   const [selectedMetric, setSelectedMetric] = useState(METRICS[0].key)
   const [paramView, setParamView] = useState<ParamView>('table')
@@ -122,10 +126,19 @@ export default function AnalysesViewerPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const selected = useMemo(
-    () => analyses.filter(a => selectedIds.includes(a.id)),
-    [analyses, selectedIds],
-  )
+  // Selected analyses in slot order, de-duplicated (ignore empty slots).
+  const selected = useMemo(() => {
+    const out: Analysis[] = []
+    const seen = new Set<number>()
+    for (const s of slots) {
+      if (s === '') continue
+      const id = Number(s)
+      if (seen.has(id)) continue
+      const a = analyses.find(x => x.id === id)
+      if (a) { out.push(a); seen.add(id) }
+    }
+    return out
+  }, [slots, analyses])
 
   // ── Shared axis styling ─────────────────────────────────────────────────
   const axisFrame = { showline: true, linewidth: 1, linecolor: '#ccc', mirror: true, showgrid: true, gridcolor: '#eee', automargin: true }
@@ -135,6 +148,8 @@ export default function AnalysesViewerPage() {
     const traces: Plotly.Data[] = []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const shapes: any[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const annotations: any[] = []
     const noWaveform: string[] = []
 
     selected.forEach((a, i) => {
@@ -153,15 +168,20 @@ export default function AnalysesViewerPage() {
       const wanted = data.filter((tr: any) => tr && (tr.name === 'Source' || tr.name === 'Response'))
       if (wanted.length === 0) { noWaveform.push(labelOf(a)); return }
 
-      // Per-run start time (min x across the kept traces) for alignment.
-      let x0 = Infinity
+      // Per-run time range (min/max x across the kept traces).
+      let x0 = Infinity, xMax = -Infinity
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const tr of wanted) {
         const xs = tr.x as number[]
-        if (Array.isArray(xs)) for (const x of xs) if (typeof x === 'number' && x < x0) x0 = x
+        if (Array.isArray(xs)) for (const x of xs) if (typeof x === 'number') { if (x < x0) x0 = x; if (x > xMax) xMax = x }
       }
       if (!isFinite(x0)) x0 = 0
-      const shiftX = (x: number) => alignStart ? x - x0 : x
+      const span = xMax > x0 ? xMax - x0 : 1
+      // One x-transform for traces + guides. normalizeTime → [0,1] (implies align).
+      const transformX = normalizeTime
+        ? (x: number) => (x - x0) / span
+        : alignStart ? (x: number) => x - x0 : (x: number) => x
+      const rightX = transformX(xMax)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const tr of wanted) {
@@ -169,9 +189,8 @@ export default function AnalysesViewerPage() {
         if (signalMode === 'source' && !isSource) continue
         if (signalMode === 'response' && isSource) continue
 
-        let xs = (tr.x as number[]) ?? []
+        const xs = ((tr.x as number[]) ?? []).map(transformX)
         let ys = (tr.y as number[]) ?? []
-        if (alignStart) xs = xs.map(shiftX)
         if (normalizeAmp) {
           let lo = Infinity, hi = -Infinity
           for (const y of ys) { if (y < lo) lo = y; if (y > hi) hi = y }
@@ -190,46 +209,63 @@ export default function AnalysesViewerPage() {
         } as Plotly.Data)
       }
 
-      // Guide lines: dotted amplitude levels + Δt markers from the stored layout.
-      // Skipped under amplitude-normalization (levels would no longer match).
+      // Guide lines: dotted amplitude levels + Δt markers from the stored layout,
+      // relabelled so the viewer knows what each dotted line means. Skipped under
+      // amplitude-normalization (levels would no longer match the traces).
+      // Labels are drawn only for the first run to avoid overlap; lines for all.
       if (showGuides && !normalizeAmp && Array.isArray(parsed?.layout?.shapes)) {
+        const srcLevels: number[] = [], respLevels: number[] = []
+        const srcMarkers: number[] = [], respMarkers: number[] = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const sh of parsed.layout.shapes as any[]) {
           if (!sh || sh.type !== 'line' || typeof sh.x0 !== 'number' || typeof sh.x1 !== 'number') continue
           const c = sh.line?.color
-          const isVertical = sh.x0 === sh.x1                 // Δt marker
-          const isLevel = sh.y0 === sh.y1 && sh.x0 !== sh.x1  // amplitude/mean level
-          let kind: 'src' | 'resp' | null = null
-          // Keep amplitude peak/trough levels (green/orange) and Δt markers (blue/red vertical).
-          if (isLevel && c === '#27ae60') kind = 'src'
-          else if (isLevel && c === '#f39c12') kind = 'resp'
-          else if (isVertical && SRC_GUIDE_COLORS.has(c)) kind = 'src'
-          else if (isVertical && RESP_GUIDE_COLORS.has(c)) kind = 'resp'
-          if (!kind) continue
-          if (signalMode === 'source' && kind !== 'src') continue
-          if (signalMode === 'response' && kind !== 'resp') continue
-          shapes.push({
-            ...sh,
-            x0: shiftX(sh.x0),
-            x1: shiftX(sh.x1),
-            line: { ...sh.line, color: kind === 'src' ? sourceColor : responseColor, width: 1.5 },
+          const isVertical = sh.x0 === sh.x1
+          const isLevel = sh.y0 === sh.y1 && sh.x0 !== sh.x1
+          if (isLevel && c === '#27ae60') srcLevels.push(sh.y0)
+          else if (isLevel && c === '#f39c12') respLevels.push(sh.y0)
+          else if (isVertical && SRC_GUIDE_COLORS.has(c)) srcMarkers.push(sh.x0)
+          else if (isVertical && RESP_GUIDE_COLORS.has(c)) respMarkers.push(sh.x0)
+        }
+        const showSrc = signalMode !== 'response'
+        const showResp = signalMode !== 'source'
+        const label = i === 0  // only annotate the first run
+
+        // Horizontal amplitude peak/trough levels.
+        const drawLevels = (levels: number[], color: string, tag: string) => {
+          const sorted = [...levels].sort((p, q) => q - p) // peak first
+          sorted.forEach((y, k) => {
+            const name = k === 0 ? `${tag} peak` : `${tag} trough`
+            shapes.push({ type: 'line', x0: transformX(x0), x1: rightX, y0: y, y1: y, line: { color, dash: 'dot', width: 1.5 } })
+            if (label) annotations.push({ x: rightX, y, xanchor: 'left', text: `  ${name}`, showarrow: false, font: { color, size: 10 }, bgcolor: 'rgba(255,255,255,0.75)' })
           })
         }
+        if (showSrc) drawLevels(srcLevels, sourceColor, 'A₁')
+        if (showResp) drawLevels(respLevels, responseColor, 'A₂')
+
+        // Vertical Δt markers (yref paper). Src peak(s) and response peak.
+        const drawMarker = (x: number, color: string, text: string) => {
+          const tx = transformX(x)
+          shapes.push({ type: 'line', x0: tx, x1: tx, y0: 0, y1: 1, yref: 'paper', line: { color, dash: 'dashdot', width: 1.5 } })
+          if (label && text) annotations.push({ x: tx, y: 1.02, yref: 'paper', text, showarrow: false, font: { color, size: 10 }, bgcolor: 'rgba(255,255,255,0.75)' })
+        }
+        if (showSrc) srcMarkers.forEach((x, k) => drawMarker(x, sourceColor, k === 0 ? 'Src peak' : ''))
+        if (showResp) respMarkers.forEach(x => drawMarker(x, responseColor, 'Resp peak (Δt)'))
       }
     })
 
-    return { traces, shapes, noWaveform }
-  }, [selected, signalMode, alignStart, normalizeAmp, showGuides, t])
+    return { traces, shapes, annotations, noWaveform }
+  }, [selected, signalMode, alignStart, normalizeAmp, normalizeTime, showGuides, t])
 
   const overlayLayout = useMemo(() => ({
     title: `<b>${t('analysesViewer.waveformOverlay')}</b>`,
     height: 600,
-    xaxis: { ...axisFrame, title: { text: alignStart ? 'Time from start (s)' : 'Time (s)', standoff: 10 } },
+    xaxis: { ...axisFrame, title: { text: normalizeTime ? 'Normalized time (0–1)' : alignStart ? 'Time from start (s)' : 'Time (s)', standoff: 10 } },
     yaxis: { ...axisFrame, title: { text: normalizeAmp ? 'Normalized power' : 'Power (mW)', standoff: 10 } },
     hovermode: 'closest' as const,
     legend: { orientation: 'h' as const, y: -0.18 },
     margin: { t: 50, b: 90 },
-  }), [t, alignStart, normalizeAmp]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [t, alignStart, normalizeAmp, normalizeTime]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Chart 2: Scalar metric comparison (selectable parameter) ────────────
   const metric = METRICS.find(m => m.key === selectedMetric) ?? METRICS[0]
@@ -287,26 +323,32 @@ export default function AnalysesViewerPage() {
         <p className="text-[var(--text-muted)]">{t('common.loading')}</p>
       ) : (
         <>
-          {/* ── Selection ─────────────────────────────────────────────────── */}
+          {/* ── Selection: up to 4 slots ──────────────────────────────────── */}
           <section className="space-y-2">
             <label className="block text-sm font-medium">{t('analysesViewer.selectAnalyses')}</label>
-            <select
-              multiple
-              value={selectedIds.map(String)}
-              onChange={e => setSelectedIds(Array.from(e.target.selectedOptions).map(o => Number(o.value)))}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm h-48"
-            >
-              {analyses.map(a => <option key={a.id} value={a.id}>{labelOf(a)}</option>)}
-            </select>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-[var(--text-muted)]">{t('common.holdCtrlMultiSelect')}</p>
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setSelectedIds(analyses.map(a => a.id))}
-                  className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
-                <button type="button" onClick={() => setSelectedIds([])}
-                  className="text-xs text-[var(--accent)] hover:underline">{t('common.none')}</button>
-                <span className="text-xs text-[var(--text-muted)]">{selected.length} {t('common.analysesSelected')}</span>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {slots.map((slot, i) => (
+                <div key={i}>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysesViewer.chooseAnalysis')} {i + 1}</label>
+                  <select
+                    value={slot === '' ? '' : String(slot)}
+                    onChange={e => setSlots(prev => {
+                      const next = [...prev]
+                      next[i] = e.target.value === '' ? '' : Number(e.target.value)
+                      return next
+                    })}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
+                  >
+                    <option value="">— {t('common.none')} —</option>
+                    {analyses.map(a => <option key={a.id} value={a.id}>{labelOf(a)}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setSlots(['', '', '', ''])}
+                className="text-xs text-[var(--accent)] hover:underline">{t('common.none')}</button>
+              <span className="text-xs text-[var(--text-muted)]">{selected.length} {t('common.analysesSelected')}</span>
             </div>
           </section>
 
@@ -336,6 +378,10 @@ export default function AnalysesViewerPage() {
                     <span className="text-sm">{t('analysesViewer.normalizeAmplitude')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={normalizeTime} onChange={e => setNormalizeTime(e.target.checked)} className="accent-accent" />
+                    <span className="text-sm">{t('analysesViewer.normalizeTime')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={showGuides} onChange={e => setShowGuides(e.target.checked)} className="accent-accent" />
                     <span className="text-sm">{t('analysesViewer.showGuides')}</span>
                   </label>
@@ -344,7 +390,7 @@ export default function AnalysesViewerPage() {
                 {overlay.traces.length > 0 ? (
                   <PlotlyChart
                     data={overlay.traces}
-                    layout={{ ...overlayLayout, shapes: overlay.shapes } as Partial<Plotly.Layout>}
+                    layout={{ ...overlayLayout, shapes: overlay.shapes, annotations: overlay.annotations } as Partial<Plotly.Layout>}
                     config={{ responsive: true }}
                     style={{ width: '100%' }}
                   />

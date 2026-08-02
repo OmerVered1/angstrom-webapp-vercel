@@ -268,6 +268,7 @@ export interface Translations {
   analysesViewer: {
     title: string
     selectAnalyses: string
+    chooseAnalysis: string
     selectPrompt: string
     waveformOverlay: string
     resultsComparison: string
@@ -277,6 +278,7 @@ export interface Translations {
     both: string
     alignToStart: string
     normalizeAmplitude: string
+    normalizeTime: string
     showGuides: string
     compareParameter: string
     comparisonTable: string

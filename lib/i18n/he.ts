@@ -281,6 +281,7 @@ export const he: Translations = {
   analysesViewer: {
     title: 'מציג ניתוחים',
     selectAnalyses: 'בחר ניתוחים להשוואה',
+    chooseAnalysis: 'ניתוח',
     selectPrompt: 'בחר ניתוח אחד או יותר למעלה כדי לצפות ולהשוות ביניהם.',
     waveformOverlay: 'צורות גל של תוצאות — שכבות',
     resultsComparison: 'השוואה בין הניתוחים',
@@ -290,6 +291,7 @@ export const he: Translations = {
     both: 'שניהם',
     alignToStart: 'יישור להתחלה משותפת',
     normalizeAmplitude: 'נרמול משרעת',
+    normalizeTime: 'נרמול זמן מההתחלה',
     showGuides: 'הצג קווי משרעת ו-Δt',
     compareParameter: 'פרמטר להשוואה',
     comparisonTable: 'טבלת השוואה',

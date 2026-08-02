@@ -281,6 +281,7 @@ export const en: Translations = {
   analysesViewer: {
     title: 'Analyses Viewer',
     selectAnalyses: 'Select analyses to compare',
+    chooseAnalysis: 'Analysis',
     selectPrompt: 'Select one or more analyses above to view and compare them.',
     waveformOverlay: 'Result Waveforms — Overlay',
     resultsComparison: 'comparison across analyses',
@@ -290,6 +291,7 @@ export const en: Translations = {
     both: 'Both',
     alignToStart: 'Align to common start',
     normalizeAmplitude: 'Normalize amplitude',
+    normalizeTime: 'Normalize time from start',
     showGuides: 'Show amplitude & Δt guides',
     compareParameter: 'Compare parameter',
     comparisonTable: 'Comparison table',
