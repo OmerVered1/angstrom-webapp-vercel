@@ -13,6 +13,7 @@ const navItems = [
   { href: '/analysis', icon: '📊', key: 'sidebar.analysis' },
   { href: '/summary', icon: '📋', key: 'sidebar.summary' },
   { href: '/history', icon: '📁', key: 'sidebar.history' },
+  { href: '/analyses-viewer', icon: '🔬', key: 'sidebar.analysesViewer' },
   { href: '/statistics', icon: '📈', key: 'sidebar.statistics' },
   { href: '/theory', icon: '📐', key: 'sidebar.theory' },
 ]

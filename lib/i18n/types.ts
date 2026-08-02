@@ -61,6 +61,7 @@ export interface Translations {
     analysis: string
     summary: string
     history: string
+    analysesViewer: string
     statistics: string
     theory: string
   }
@@ -259,6 +260,28 @@ export interface Translations {
     confirmDelete: string
     noCal: string
     calLag: string
+  }
+
+  /* ====================================================================== */
+  /*  analysesViewer – multi-analysis compare & overlay                     */
+  /* ====================================================================== */
+  analysesViewer: {
+    title: string
+    selectAnalyses: string
+    selectPrompt: string
+    waveformOverlay: string
+    resultsComparison: string
+    signal: string
+    source: string
+    response: string
+    both: string
+    alignToStart: string
+    normalizeAmplitude: string
+    comparisonTable: string
+    cards: string
+    parameter: string
+    noWaveformNote: string
+    noWaveformForSelection: string
   }
 
   /* ====================================================================== */

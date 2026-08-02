@@ -64,6 +64,7 @@ export const en: Translations = {
     analysis: 'New Analysis',
     summary: 'Results Summary',
     history: 'Results History',
+    analysesViewer: 'Analyses Viewer',
     statistics: 'Statistics',
     theory: 'Theory & Math',
   },
@@ -272,6 +273,28 @@ export const en: Translations = {
     confirmDelete: 'Delete analysis',
     noCal: 'No Cal',
     calLag: 'Cal (Lag:',
+  },
+
+  /* ====================================================================== */
+  /*  analysesViewer                                                        */
+  /* ====================================================================== */
+  analysesViewer: {
+    title: 'Analyses Viewer',
+    selectAnalyses: 'Select analyses to compare',
+    selectPrompt: 'Select one or more analyses above to view and compare them.',
+    waveformOverlay: 'Result Waveforms — Overlay',
+    resultsComparison: 'Results Comparison (α)',
+    signal: 'Signal',
+    source: 'Source',
+    response: 'Response',
+    both: 'Both',
+    alignToStart: 'Align to common start',
+    normalizeAmplitude: 'Normalize amplitude',
+    comparisonTable: 'Comparison table',
+    cards: 'Cards',
+    parameter: 'Parameter',
+    noWaveformNote: 'No stored waveform (shown in table only):',
+    noWaveformForSelection: 'None of the selected analyses has a stored waveform to overlay.',
   },
 
   /* ====================================================================== */

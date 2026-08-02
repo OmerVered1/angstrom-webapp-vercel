@@ -64,6 +64,7 @@ export const he: Translations = {
     analysis: 'ניתוח חדש',
     summary: 'סיכום תוצאות',
     history: 'היסטוריית תוצאות',
+    analysesViewer: 'מציג ניתוחים',
     statistics: 'סטטיסטיקה',
     theory: 'תיאוריה ומתמטיקה',
   },
@@ -272,6 +273,28 @@ export const he: Translations = {
     confirmDelete: 'מחיקת ניתוח',
     noCal: 'ללא כיול',
     calLag: 'כיול (השהייה:',
+  },
+
+  /* ====================================================================== */
+  /*  analysesViewer                                                        */
+  /* ====================================================================== */
+  analysesViewer: {
+    title: 'מציג ניתוחים',
+    selectAnalyses: 'בחר ניתוחים להשוואה',
+    selectPrompt: 'בחר ניתוח אחד או יותר למעלה כדי לצפות ולהשוות ביניהם.',
+    waveformOverlay: 'צורות גל של תוצאות — שכבות',
+    resultsComparison: 'השוואת תוצאות (α)',
+    signal: 'אות',
+    source: 'מקור',
+    response: 'תגובה',
+    both: 'שניהם',
+    alignToStart: 'יישור להתחלה משותפת',
+    normalizeAmplitude: 'נרמול משרעת',
+    comparisonTable: 'טבלת השוואה',
+    cards: 'כרטיסים',
+    parameter: 'פרמטר',
+    noWaveformNote: 'ללא צורת גל שמורה (מוצג בטבלה בלבד):',
+    noWaveformForSelection: 'לאף אחד מהניתוחים שנבחרו אין צורת גל שמורה לשכבות.',
   },
 
   /* ====================================================================== */
