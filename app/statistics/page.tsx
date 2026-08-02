@@ -189,6 +189,7 @@ export default function StatisticsPage() {
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
   const [excludePeriods, setExcludePeriods] = useState<string[]>([])
   const [periodRange, setPeriodRange] = useState<[number, number] | null>(null)
+  const [a1Range, setA1Range] = useState<[number, number] | null>(null)
   const [excludeSourceDevices, setExcludeSourceDevices] = useState<string[]>([])
   const [excludeResponseDevices, setExcludeResponseDevices] = useState<string[]>([])
   const [excludeGasAtmospheres, setExcludeGasAtmospheres] = useState<string[]>([])
@@ -233,10 +234,25 @@ export default function StatisticsPage() {
     return [Math.min(...ps), Math.max(...ps)]
   }, [analyses])
 
-  // Initialise the range to the full domain once data loads.
+  // Numeric [min, max] domain + step for the A₁ (amplitude) range slider.
+  const a1Domain = useMemo<[number, number] | null>(() => {
+    const vs = analyses.map(a => a.amplitude_a1).filter(v => v != null && isFinite(v))
+    if (vs.length === 0) return null
+    return [Math.floor(Math.min(...vs)), Math.ceil(Math.max(...vs))]
+  }, [analyses])
+  const a1Step = useMemo(() => {
+    if (!a1Domain) return 1
+    const span = a1Domain[1] - a1Domain[0]
+    return span > 200 ? 5 : span > 50 ? 1 : span > 5 ? 0.5 : 0.1
+  }, [a1Domain])
+
+  // Initialise the ranges to their full domains once data loads.
   useEffect(() => {
     if (periodDomain && periodRange == null) setPeriodRange(periodDomain)
   }, [periodDomain, periodRange])
+  useEffect(() => {
+    if (a1Domain && a1Range == null) setA1Range(a1Domain)
+  }, [a1Domain, a1Range])
 
   const applyPeriodRange = useCallback((next: [number, number]) => {
     setPeriodRange(next)
@@ -246,8 +262,8 @@ export default function StatisticsPage() {
   const resetAllFilters = useCallback(() => {
     setExcludeModels([]); setExcludeSourceDevices([]); setExcludeResponseDevices([])
     setExcludeGasAtmospheres([]); setExcludePeriods([]); setFilterCal('All')
-    setPeriodRange(periodDomain)
-  }, [periodDomain])
+    setPeriodRange(periodDomain); setA1Range(a1Domain)
+  }, [periodDomain, a1Domain])
 
   // Period checkboxes limited to the slider range.
   const visiblePeriods = useMemo(() => {
@@ -268,12 +284,13 @@ export default function StatisticsPage() {
         if (pv < periodRange[0] || pv > periodRange[1]) return false
       }
       if (excludePeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
+      if (a1Range && a.amplitude_a1 != null && (a.amplitude_a1 < a1Range[0] || a.amplitude_a1 > a1Range[1])) return false
       if (a.power_source_device && excludeSourceDevices.includes(a.power_source_device)) return false
       if (a.power_response_device && excludeResponseDevices.includes(a.power_response_device)) return false
       if (a.gas_atmosphere && excludeGasAtmospheres.includes(a.gas_atmosphere)) return false
       return true
     })
-  }, [analyses, excludeModels, filterCal, periodRange, excludePeriods, excludeSourceDevices, excludeResponseDevices, excludeGasAtmospheres])
+  }, [analyses, excludeModels, filterCal, periodRange, excludePeriods, a1Range, excludeSourceDevices, excludeResponseDevices, excludeGasAtmospheres])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -814,6 +831,25 @@ export default function StatisticsPage() {
               <div className="flex items-center justify-end mt-1">
                 <button type="button" onClick={() => setExcludePeriods([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">A{'₁'} (mW)</label>
+              {a1Domain && a1Range && a1Domain[0] < a1Domain[1] ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span>{t('statistics.periodRange')}</span>
+                    <span>{a1Range[0].toFixed(1)}–{a1Range[1].toFixed(1)} mW</span>
+                  </div>
+                  <input type="range" min={a1Domain[0]} max={a1Domain[1]} step={a1Step} value={a1Range[0]}
+                    onChange={e => setA1Range([Math.min(Number(e.target.value), a1Range[1]), a1Range[1]])}
+                    className="w-full accent-accent" />
+                  <input type="range" min={a1Domain[0]} max={a1Domain[1]} step={a1Step} value={a1Range[1]}
+                    onChange={e => setA1Range([a1Range[0], Math.max(Number(e.target.value), a1Range[0])])}
+                    className="w-full accent-accent" />
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)]">—</p>
+              )}
             </div>
           </div>
 
