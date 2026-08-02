@@ -336,6 +336,7 @@ export const he: Translations = {
     periods: 'מחזורים',
     periodRange: 'טווח',
     noPeriodsInRange: 'אין מחזורים בטווח',
+    resetFilters: 'איפוס כל המסננים',
     downloadStatsCsv: 'הורדת סטטיסטיקה (CSV)',
     mean: 'ממוצע',
     std: 'סטיית תקן',

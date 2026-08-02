@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, type Dispatch, type SetStateAction } from 'react'
 import PlotlyChart from '@/components/PlotlyChart'
 import { supabase, isConfigured } from '@/lib/supabase'
 import { formatAlpha, parseTestDate } from '@/lib/utils'
@@ -138,12 +138,12 @@ function std(arr: number[]): number {
   return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length)
 }
 
-// Scrollable checkbox list used for the multi-select filters.
-// Empty selection means "no filter" (all values pass) — matches the filter logic.
-function CheckboxList({ options, selected, onChange, empty }: {
+// Scrollable checkbox list. Every value starts checked; unchecking a value
+// adds it to the filter's exclusion set, cutting those analyses.
+function CheckboxList({ options, excluded, onToggle, empty }: {
   options: string[]
-  selected: string[]
-  onChange: (next: string[]) => void
+  excluded: string[]
+  onToggle: (value: string, checked: boolean) => void
   empty?: string
 }) {
   return (
@@ -155,8 +155,8 @@ function CheckboxList({ options, selected, onChange, empty }: {
           <input
             type="checkbox"
             className="accent-accent"
-            checked={selected.includes(o)}
-            onChange={e => onChange(e.target.checked ? [...selected, o] : selected.filter(x => x !== o))}
+            checked={!excluded.includes(o)}
+            onChange={e => onToggle(o, e.target.checked)}
           />
           <span className="truncate">{o}</span>
         </label>
@@ -184,14 +184,22 @@ export default function StatisticsPage() {
   const [logY, setLogY] = useState(false)
   const [logX, setLogX] = useState(false)
 
-  // Filters
-  const [filterModels, setFilterModels] = useState<string[]>([])
+  // Filters — everything is included by default; these hold the EXCLUDED values.
+  const [excludeModels, setExcludeModels] = useState<string[]>([])
   const [filterCal, setFilterCal] = useState<'All' | 'Calibrated' | 'Uncalibrated'>('All')
-  const [filterPeriods, setFilterPeriods] = useState<string[]>([])
+  const [excludePeriods, setExcludePeriods] = useState<string[]>([])
   const [periodRange, setPeriodRange] = useState<[number, number] | null>(null)
-  const [filterSourceDevices, setFilterSourceDevices] = useState<string[]>([])
-  const [filterResponseDevices, setFilterResponseDevices] = useState<string[]>([])
-  const [filterGasAtmospheres, setFilterGasAtmospheres] = useState<string[]>([])
+  const [excludeSourceDevices, setExcludeSourceDevices] = useState<string[]>([])
+  const [excludeResponseDevices, setExcludeResponseDevices] = useState<string[]>([])
+  const [excludeGasAtmospheres, setExcludeGasAtmospheres] = useState<string[]>([])
+
+  // Toggle helper for an exclusion set: checked → remove from excluded, unchecked → add.
+  const toggleExclude = useCallback(
+    (setter: Dispatch<SetStateAction<string[]>>) =>
+      (value: string, checked: boolean) =>
+        setter(prev => checked ? prev.filter(v => v !== value) : (prev.includes(value) ? prev : [...prev, value])),
+    [],
+  )
 
   // Period source for plots/groupings keyed on period or frequency
   const [periodSource, setPeriodSource] = useState<PeriodSource>('src')
@@ -205,7 +213,6 @@ export default function StatisticsPage() {
     const { data, error } = await supabase.from('analyses').select('*').order('created_at', { ascending: false })
     if (!error && data) {
       setAnalyses(data as Analysis[])
-      setFilterModels(Array.from(new Set((data as Analysis[]).map(a => a.model_name))))
     }
     setLoading(false)
   }, [])
@@ -231,14 +238,16 @@ export default function StatisticsPage() {
     if (periodDomain && periodRange == null) setPeriodRange(periodDomain)
   }, [periodDomain, periodRange])
 
-  // Update the range and drop any checked periods that fall outside it.
   const applyPeriodRange = useCallback((next: [number, number]) => {
     setPeriodRange(next)
-    setFilterPeriods(prev => prev.filter(p => {
-      const v = parseFloat(p)
-      return v >= next[0] && v <= next[1]
-    }))
   }, [])
+
+  // Reset every filter back to "all included".
+  const resetAllFilters = useCallback(() => {
+    setExcludeModels([]); setExcludeSourceDevices([]); setExcludeResponseDevices([])
+    setExcludeGasAtmospheres([]); setExcludePeriods([]); setFilterCal('All')
+    setPeriodRange(periodDomain)
+  }, [periodDomain])
 
   // Period checkboxes limited to the slider range.
   const visiblePeriods = useMemo(() => {
@@ -251,20 +260,20 @@ export default function StatisticsPage() {
 
   const filtered = useMemo(() => {
     return analyses.filter(a => {
-      if (filterModels.length > 0 && !filterModels.includes(a.model_name)) return false
+      if (excludeModels.includes(a.model_name)) return false
       if (filterCal === 'Calibrated' && !a.use_calibration) return false
       if (filterCal === 'Uncalibrated' && a.use_calibration) return false
       if (periodRange) {
         const pv = Math.round(a.period_t / 10) * 10
         if (pv < periodRange[0] || pv > periodRange[1]) return false
       }
-      if (filterPeriods.length > 0 && !filterPeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
-      if (filterSourceDevices.length > 0 && !(a.power_source_device && filterSourceDevices.includes(a.power_source_device))) return false
-      if (filterResponseDevices.length > 0 && !(a.power_response_device && filterResponseDevices.includes(a.power_response_device))) return false
-      if (filterGasAtmospheres.length > 0 && !(a.gas_atmosphere && filterGasAtmospheres.includes(a.gas_atmosphere))) return false
+      if (excludePeriods.includes(Math.round(a.period_t / 10) * 10 + ' s')) return false
+      if (a.power_source_device && excludeSourceDevices.includes(a.power_source_device)) return false
+      if (a.power_response_device && excludeResponseDevices.includes(a.power_response_device)) return false
+      if (a.gas_atmosphere && excludeGasAtmospheres.includes(a.gas_atmosphere)) return false
       return true
     })
-  }, [analyses, filterModels, filterCal, periodRange, filterPeriods, filterSourceDevices, filterResponseDevices, filterGasAtmospheres])
+  }, [analyses, excludeModels, filterCal, periodRange, excludePeriods, excludeSourceDevices, excludeResponseDevices, excludeGasAtmospheres])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -740,34 +749,42 @@ export default function StatisticsPage() {
             </span>
           </div>
 
-          {/* ── Filters ──────────────────────────────────────────────────── */}
+          {/* ── Filters (all included by default; uncheck to cut) ─────────── */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--text-muted)]">
+              {filtered.length} / {analyses.length} {t('common.analysesSelected')}
+            </p>
+            <button type="button" onClick={resetAllFilters} className="text-xs text-[var(--accent)] hover:underline">
+              {t('statistics.resetFilters')}
+            </button>
+          </div>
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.models')}</label>
-              <CheckboxList options={allModels} selected={filterModels} onChange={setFilterModels} />
+              <CheckboxList options={allModels} excluded={excludeModels} onToggle={toggleExclude(setExcludeModels)} />
               <div className="flex items-center justify-end mt-1">
-                <button type="button" onClick={() => setFilterModels([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+                <button type="button" onClick={() => setExcludeModels([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerSourceDevice')}</label>
-              <CheckboxList options={allSourceDevices} selected={filterSourceDevices} onChange={setFilterSourceDevices} />
+              <CheckboxList options={allSourceDevices} excluded={excludeSourceDevices} onToggle={toggleExclude(setExcludeSourceDevices)} />
               <div className="flex items-center justify-end mt-1">
-                <button type="button" onClick={() => setFilterSourceDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+                <button type="button" onClick={() => setExcludeSourceDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.powerResponseDevice')}</label>
-              <CheckboxList options={allResponseDevices} selected={filterResponseDevices} onChange={setFilterResponseDevices} />
+              <CheckboxList options={allResponseDevices} excluded={excludeResponseDevices} onToggle={toggleExclude(setExcludeResponseDevices)} />
               <div className="flex items-center justify-end mt-1">
-                <button type="button" onClick={() => setFilterResponseDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+                <button type="button" onClick={() => setExcludeResponseDevices([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('analysis.gasAtmosphere')}</label>
-              <CheckboxList options={allGasAtmospheres} selected={filterGasAtmospheres} onChange={setFilterGasAtmospheres} />
+              <CheckboxList options={allGasAtmospheres} excluded={excludeGasAtmospheres} onToggle={toggleExclude(setExcludeGasAtmospheres)} />
               <div className="flex items-center justify-end mt-1">
-                <button type="button" onClick={() => setFilterGasAtmospheres([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+                <button type="button" onClick={() => setExcludeGasAtmospheres([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
             </div>
             <div>
@@ -779,7 +796,7 @@ export default function StatisticsPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.periods')}</label>
-              <CheckboxList options={visiblePeriods} selected={filterPeriods} onChange={setFilterPeriods} empty={t('statistics.noPeriodsInRange')} />
+              <CheckboxList options={visiblePeriods} excluded={excludePeriods} onToggle={toggleExclude(setExcludePeriods)} empty={t('statistics.noPeriodsInRange')} />
               {periodDomain && periodRange && periodDomain[0] < periodDomain[1] && (
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
@@ -795,11 +812,8 @@ export default function StatisticsPage() {
                 </div>
               )}
               <div className="flex items-center justify-end mt-1">
-                <button type="button" onClick={() => setFilterPeriods([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+                <button type="button" onClick={() => setExcludePeriods([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
               </div>
-            </div>
-            <div className="flex items-end">
-              <p className="text-sm text-[var(--text-muted)]">{filtered.length} {t('common.analysesSelected')}</p>
             </div>
           </div>
 

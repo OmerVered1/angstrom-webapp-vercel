@@ -336,6 +336,7 @@ export const en: Translations = {
     periods: 'Periods',
     periodRange: 'Range',
     noPeriodsInRange: 'No periods in range',
+    resetFilters: 'Reset all filters',
     downloadStatsCsv: 'Download Statistics (CSV)',
     mean: 'Mean',
     std: 'Std',

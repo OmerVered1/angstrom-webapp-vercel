@@ -322,6 +322,7 @@ export interface Translations {
     periods: string
     periodRange: string
     noPeriodsInRange: string
+    resetFilters: string
     downloadStatsCsv: string
     mean: string
     std: string
