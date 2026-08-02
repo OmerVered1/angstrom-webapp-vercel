@@ -277,6 +277,8 @@ export interface Translations {
     both: string
     alignToStart: string
     normalizeAmplitude: string
+    showGuides: string
+    compareParameter: string
     comparisonTable: string
     cards: string
     parameter: string

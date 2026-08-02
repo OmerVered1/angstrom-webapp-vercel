@@ -66,12 +66,30 @@ const PARAM_ROWS: { label: string; get: (a: Analysis) => string }[] = [
   { label: 'α Phase cal (mm²/s)', get: a => alphaStr(a.alpha_phase_cal) },
 ]
 
-const ALPHA_SERIES = [
-  { label: 'α Combined (raw)', get: (a: Analysis) => a.alpha_combined_raw > 0 ? a.alpha_combined_raw * 1e6 : null },
-  { label: 'α Phase (raw)', get: (a: Analysis) => a.alpha_phase_raw > 0 ? a.alpha_phase_raw * 1e6 : null },
-  { label: 'α Combined (cal)', get: (a: Analysis) => (a.alpha_combined_cal ?? 0) > 0 ? a.alpha_combined_cal! * 1e6 : null },
-  { label: 'α Phase (cal)', get: (a: Analysis) => (a.alpha_phase_cal ?? 0) > 0 ? a.alpha_phase_cal! * 1e6 : null },
+// Numeric metrics selectable for the comparison chart.
+const METRICS: { key: string; label: string; get: (a: Analysis) => number | null }[] = [
+  { key: 'alpha_comb_raw', label: 'α Combined (raw) (mm²/s)', get: a => a.alpha_combined_raw > 0 ? a.alpha_combined_raw * 1e6 : null },
+  { key: 'alpha_phase_raw', label: 'α Phase (raw) (mm²/s)', get: a => a.alpha_phase_raw > 0 ? a.alpha_phase_raw * 1e6 : null },
+  { key: 'alpha_comb_cal', label: 'α Combined (cal) (mm²/s)', get: a => (a.alpha_combined_cal ?? 0) > 0 ? a.alpha_combined_cal! * 1e6 : null },
+  { key: 'alpha_phase_cal', label: 'α Phase (cal) (mm²/s)', get: a => (a.alpha_phase_cal ?? 0) > 0 ? a.alpha_phase_cal! * 1e6 : null },
+  { key: 'raw_lag_dt', label: 'Δt (s)', get: a => a.raw_lag_dt },
+  { key: 'net_lag_dt', label: 'Net Δt (s)', get: a => a.net_lag_dt ?? null },
+  { key: 'raw_phase_phi', label: 'φ (rad)', get: a => a.raw_phase_phi },
+  { key: 'ln_term', label: 'ln term', get: a => a.ln_term },
+  { key: 'amplitude_a1', label: 'A₁ (mW)', get: a => a.amplitude_a1 },
+  { key: 'amplitude_a2', label: 'A₂ (mW)', get: a => a.amplitude_a2 },
+  { key: 'a1_a2', label: 'A₁/A₂ ratio', get: a => a.amplitude_a2 !== 0 ? a.amplitude_a1 / a.amplitude_a2 : null },
+  { key: 'period_t', label: 'Src Period (s)', get: a => a.period_t },
+  { key: 'period_t_resp', label: 'Resp Period (s)', get: a => a.period_t_resp ?? null },
+  { key: 'frequency_f', label: 'Src f (Hz)', get: a => a.frequency_f },
+  { key: 'angular_freq_w', label: 'ω (rad/s)', get: a => a.angular_freq_w },
+  { key: 'temperature_c', label: 'Temperature (°C)', get: a => a.temperature_c ?? null },
+  { key: 'system_lag', label: 'System lag (s)', get: a => a.system_lag ?? null },
 ]
+
+// Trace colors within a run's stored graph → which signal a guide line belongs to.
+const SRC_GUIDE_COLORS = new Set(['#27ae60', '#3498db']) // green level, blue vertical/mean
+const RESP_GUIDE_COLORS = new Set(['#f39c12', '#e74c3c']) // orange level, red vertical/mean
 
 // ---------------------------------------------------------------------------
 // Component
@@ -86,6 +104,8 @@ export default function AnalysesViewerPage() {
   const [signalMode, setSignalMode] = useState<SignalMode>('both')
   const [alignStart, setAlignStart] = useState(true)
   const [normalizeAmp, setNormalizeAmp] = useState(false)
+  const [showGuides, setShowGuides] = useState(true)
+  const [selectedMetric, setSelectedMetric] = useState(METRICS[0].key)
   const [paramView, setParamView] = useState<ParamView>('table')
 
   const fetchData = useCallback(async () => {
@@ -113,9 +133,15 @@ export default function AnalysesViewerPage() {
   // ── Chart 1: Waveform overlay ───────────────────────────────────────────
   const overlay = useMemo(() => {
     const traces: Plotly.Data[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shapes: any[] = []
     const noWaveform: string[] = []
 
     selected.forEach((a, i) => {
+      // Distinct colour per (run × signal): 2 colours per run → 4 for two runs.
+      const sourceColor = COLORS[(2 * i) % COLORS.length]
+      const responseColor = COLORS[(2 * i + 1) % COLORS.length]
+
       const raw = a.graph_image ?? a.graph_json
       if (!raw || typeof raw !== 'string' || !raw.trimStart().startsWith('{')) { noWaveform.push(labelOf(a)); return }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,16 +161,17 @@ export default function AnalysesViewerPage() {
         if (Array.isArray(xs)) for (const x of xs) if (typeof x === 'number' && x < x0) x0 = x
       }
       if (!isFinite(x0)) x0 = 0
+      const shiftX = (x: number) => alignStart ? x - x0 : x
 
-      const color = COLORS[i % COLORS.length]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const tr of wanted) {
-        if (signalMode === 'source' && tr.name !== 'Source') continue
-        if (signalMode === 'response' && tr.name !== 'Response') continue
+        const isSource = tr.name === 'Source'
+        if (signalMode === 'source' && !isSource) continue
+        if (signalMode === 'response' && isSource) continue
 
         let xs = (tr.x as number[]) ?? []
         let ys = (tr.y as number[]) ?? []
-        if (alignStart) xs = xs.map(x => x - x0)
+        if (alignStart) xs = xs.map(shiftX)
         if (normalizeAmp) {
           let lo = Infinity, hi = -Infinity
           for (const y of ys) { if (y < lo) lo = y; if (y > hi) hi = y }
@@ -152,20 +179,47 @@ export default function AnalysesViewerPage() {
           ys = range > 0 ? ys.map(y => (y - lo) / range) : ys.map(() => 0)
         }
 
-        const sigLabel = tr.name === 'Source' ? t('analysesViewer.source') : t('analysesViewer.response')
+        const sigLabel = isSource ? t('analysesViewer.source') : t('analysesViewer.response')
         traces.push({
           x: xs, y: ys,
           name: `${labelOf(a)} — ${sigLabel}`,
           type: 'scatter', mode: 'lines',
-          line: { color, width: 2, dash: tr.name === 'Response' ? 'dash' : 'solid' },
+          line: { color: isSource ? sourceColor : responseColor, width: 2, dash: isSource ? 'solid' : 'dash' },
           legendgroup: String(a.id),
           hovertemplate: '%{x}, %{y}<extra></extra>',
         } as Plotly.Data)
       }
+
+      // Guide lines: dotted amplitude levels + Δt markers from the stored layout.
+      // Skipped under amplitude-normalization (levels would no longer match).
+      if (showGuides && !normalizeAmp && Array.isArray(parsed?.layout?.shapes)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const sh of parsed.layout.shapes as any[]) {
+          if (!sh || sh.type !== 'line' || typeof sh.x0 !== 'number' || typeof sh.x1 !== 'number') continue
+          const c = sh.line?.color
+          const isVertical = sh.x0 === sh.x1                 // Δt marker
+          const isLevel = sh.y0 === sh.y1 && sh.x0 !== sh.x1  // amplitude/mean level
+          let kind: 'src' | 'resp' | null = null
+          // Keep amplitude peak/trough levels (green/orange) and Δt markers (blue/red vertical).
+          if (isLevel && c === '#27ae60') kind = 'src'
+          else if (isLevel && c === '#f39c12') kind = 'resp'
+          else if (isVertical && SRC_GUIDE_COLORS.has(c)) kind = 'src'
+          else if (isVertical && RESP_GUIDE_COLORS.has(c)) kind = 'resp'
+          if (!kind) continue
+          if (signalMode === 'source' && kind !== 'src') continue
+          if (signalMode === 'response' && kind !== 'resp') continue
+          shapes.push({
+            ...sh,
+            x0: shiftX(sh.x0),
+            x1: shiftX(sh.x1),
+            line: { ...sh.line, color: kind === 'src' ? sourceColor : responseColor, width: 1.5 },
+          })
+        }
+      }
     })
 
-    return { traces, noWaveform }
-  }, [selected, signalMode, alignStart, normalizeAmp, t])
+    return { traces, shapes, noWaveform }
+  }, [selected, signalMode, alignStart, normalizeAmp, showGuides, t])
 
   const overlayLayout = useMemo(() => ({
     title: `<b>${t('analysesViewer.waveformOverlay')}</b>`,
@@ -177,31 +231,31 @@ export default function AnalysesViewerPage() {
     margin: { t: 50, b: 90 },
   }), [t, alignStart, normalizeAmp]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Chart 2: Scalar α comparison ────────────────────────────────────────
-  const alphaCompare = useMemo(() => {
+  // ── Chart 2: Scalar metric comparison (selectable parameter) ────────────
+  const metric = METRICS.find(m => m.key === selectedMetric) ?? METRICS[0]
+  const metricCompare = useMemo(() => {
     if (selected.length === 0) return null
     const labels = selected.map(labelOf)
-    const data: Plotly.Data[] = ALPHA_SERIES.map((s, si) => ({
+    const data: Plotly.Data[] = [{
       x: labels,
-      y: selected.map(a => s.get(a)),
-      name: s.label,
+      y: selected.map(a => metric.get(a)),
       type: 'bar' as const,
-      marker: { color: COLORS[si % COLORS.length] },
-    }))
+      marker: { color: selected.map((_, i) => COLORS[i % COLORS.length]) },
+      hovertemplate: '%{x}<br>%{y}<extra></extra>',
+    }]
     return {
       data,
       layout: {
-        title: `<b>${t('analysesViewer.resultsComparison')}</b>`,
+        title: `<b>${metric.label} — ${t('analysesViewer.resultsComparison')}</b>`,
         height: 460,
-        barmode: 'group' as const,
         xaxis: { ...axisFrame, automargin: true, tickangle: -30 },
-        yaxis: { ...axisFrame, title: { text: 'α (mm²/s)', standoff: 10 } },
-        legend: { orientation: 'h' as const, y: -0.35 },
+        yaxis: { ...axisFrame, title: { text: metric.label, standoff: 10 } },
+        showlegend: false,
         margin: { t: 50, b: 140 },
       },
       config: { responsive: true },
     }
-  }, [selected, t]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected, metric, t]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Which parameter rows differ across the selected analyses (for highlight).
   const differingRows = useMemo(() => {
@@ -281,12 +335,16 @@ export default function AnalysesViewerPage() {
                     <input type="checkbox" checked={normalizeAmp} onChange={e => setNormalizeAmp(e.target.checked)} className="accent-accent" />
                     <span className="text-sm">{t('analysesViewer.normalizeAmplitude')}</span>
                   </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={showGuides} onChange={e => setShowGuides(e.target.checked)} className="accent-accent" />
+                    <span className="text-sm">{t('analysesViewer.showGuides')}</span>
+                  </label>
                 </div>
 
                 {overlay.traces.length > 0 ? (
                   <PlotlyChart
                     data={overlay.traces}
-                    layout={overlayLayout as Partial<Plotly.Layout>}
+                    layout={{ ...overlayLayout, shapes: overlay.shapes } as Partial<Plotly.Layout>}
                     config={{ responsive: true }}
                     style={{ width: '100%' }}
                   />
@@ -301,13 +359,20 @@ export default function AnalysesViewerPage() {
                 )}
               </section>
 
-              {/* ── Chart 2: Scalar α comparison ──────────────────────────── */}
-              {alphaCompare && (
-                <section>
+              {/* ── Chart 2: Metric comparison (selectable parameter) ─────── */}
+              {metricCompare && (
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium">{t('analysesViewer.compareParameter')}:</label>
+                    <select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm">
+                      {METRICS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    </select>
+                  </div>
                   <PlotlyChart
-                    data={alphaCompare.data}
-                    layout={alphaCompare.layout as Partial<Plotly.Layout>}
-                    config={alphaCompare.config}
+                    data={metricCompare.data}
+                    layout={metricCompare.layout as Partial<Plotly.Layout>}
+                    config={metricCompare.config}
                     style={{ width: '100%' }}
                   />
                 </section>
