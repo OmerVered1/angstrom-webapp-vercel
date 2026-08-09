@@ -115,6 +115,11 @@ export const he: Translations = {
     step3Title: '3. תוצאות הניתוח',
     responseData: 'נתוני תגובת הספק',
     sourceData: 'נתוני מקור הספק',
+    inputMode: 'קלט',
+    twoFiles: 'שני קבצים',
+    oneFile: 'קובץ משולב אחד',
+    combinedData: 'נתונים משולבים (מקור + תגובה)',
+    combinedHint: 'קובץ אחד עם ציר זמן משותף, עמודות מקור (mW) ותגובה (mW). אין צורך ביישור שעונים.',
     timeUnit: 'יחידת זמן',
     powerUnit: 'יחידת הספק',
     responseStartTime: 'זמן התחלת תגובה (HH:MM:SS)',
@@ -203,6 +208,7 @@ export const he: Translations = {
     supabaseNotConfiguredSaving:
       'Supabase לא מוגדר \u2014 הגדר משתני סביבה כדי לאפשר שמירה.',
     errUploadBoth: 'יש להעלות את שני קבצי הנתונים.',
+    errUploadCombined: 'יש להעלות את קובץ הנתונים המשולב.',
     errParseFailed:
       'לא ניתן לנתח אחד או שני קבצים. בדוק את פורמט הקובץ.',
     errNotEnoughOverlap:

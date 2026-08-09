@@ -13,6 +13,14 @@ export interface ParsedData {
   value: number[]
 }
 
+/** A single "all-in-one" capture: source + response share one time axis. */
+export interface CombinedParsed {
+  time: number[]        // seconds
+  source: number[]      // SMU source power, mW
+  response: number[]    // HeatFlow DC response, mW
+  temperature: number[] // sample temperature, °C (NaN where absent)
+}
+
 export type FileType = 'keithley' | 'c80' | 'unknown'
 
 // ---------------------------------------------------------------------------
@@ -65,6 +73,61 @@ export function parseFile(content: ArrayBuffer, filename: string): ParsedData | 
   result = parseKeithley(lines)
   if (result) return result
   return parseGeneric(lines)
+}
+
+/**
+ * True if the file is an all-in-one capture (source + response in one file,
+ * one shared time axis). Recognised by the SMU-source and HeatFlow-response
+ * columns produced by the combined capture program.
+ */
+export function isCombinedFile(content: ArrayBuffer): boolean {
+  const text = decodeBytes(content)
+  const head = text.split(/\r?\n/).slice(0, 60).join('\n').toLowerCase()
+  return head.includes('smu source') && head.includes('heatflow') && head.includes('response')
+}
+
+/**
+ * Parse an all-in-one capture file into aligned source/response arrays.
+ * Both signals share the file's single Time(s) axis, so no clock offset or
+ * unit conversion is needed downstream (units are s and mW).
+ */
+export function parseCombinedFile(content: ArrayBuffer): CombinedParsed | null {
+  const lines = decodeBytes(content).split(/\r?\n/)
+  const time: number[] = [], source: number[] = [], response: number[] = [], temperature: number[] = []
+  let started = false
+  let tCol = -1, srcCol = -1, respCol = -1, tempCol = -1
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    if (!started) {
+      if (!trimmed.includes('\t')) continue
+      const cols = trimmed.split('\t').map(s => s.trim().toLowerCase())
+      const ti = cols.findIndex(c => /time\s*\(s\)|^time$/.test(c))
+      const si = cols.findIndex(c => c.includes('smu source') || (c.includes('source') && c.includes('mw')))
+      const ri = cols.findIndex(c => c.includes('heatflow') || (c.includes('response') && !c.includes('temp')))
+      if (ti >= 0 && si >= 0 && ri >= 0) {
+        tCol = ti; srcCol = si; respCol = ri
+        // Prefer the sample "Temperature" column over "External Temp".
+        tempCol = cols.findIndex(c => c.startsWith('temperature'))
+        started = true
+      }
+      continue
+    }
+
+    const row = trimmed.split('\t')
+    if (row.length <= Math.max(tCol, srcCol, respCol)) continue
+    const tv = parseFloat(row[tCol])
+    const sv = parseFloat(row[srcCol])
+    const rv = parseFloat(row[respCol])
+    if (isNaN(tv) || isNaN(sv) || isNaN(rv)) continue
+    time.push(tv); source.push(sv); response.push(rv)
+    const tp = tempCol >= 0 && tempCol < row.length ? parseFloat(row[tempCol]) : NaN
+    temperature.push(tp)
+  }
+
+  return time.length > 10 ? { time, source, response, temperature } : null
 }
 
 /**

@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import PlotlyChart from '@/components/PlotlyChart'
 import {
   parseFile,
+  parseCombinedFile,
   extractStartTime,
   extractDateFromFilename,
   extractTemperatureFromFilename,
@@ -70,11 +71,18 @@ export default function AnalysisPage() {
   // Step control
   const [step, setStep] = useState(1)
 
+  // Step 1 — input mode: two separate files, or one combined (all-in-one) file
+  const [inputMode, setInputMode] = useState<'two' | 'one'>('two')
+
   // Step 1 — files
   const [c80File, setC80File] = useState<File | null>(null)
   const [srcFile, setSrcFile] = useState<File | null>(null)
   const [c80Buffer, setC80Buffer] = useState<ArrayBuffer | null>(null)
   const [srcBuffer, setSrcBuffer] = useState<ArrayBuffer | null>(null)
+
+  // Step 1 — combined all-in-one file
+  const [aioFile, setAioFile] = useState<File | null>(null)
+  const [aioBuffer, setAioBuffer] = useState<ArrayBuffer | null>(null)
 
   // Step 1 — auto-detected metadata
   const [autoC80Time, setAutoC80Time] = useState<string | null>(null)
@@ -252,10 +260,76 @@ export default function AnalysisPage() {
     if (unit) setSrcPwrUnit(unit)
   }, [])
 
+  const handleAioUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAioFile(file)
+    const buf = await file.arrayBuffer()
+    setAioBuffer(buf)
+
+    // Metadata from the filename (same helpers as the two-file path).
+    const date = extractDateFromFilename(file.name)
+    if (date) { setAutoDate(date); setTestDate(date) }
+    const sample = extractSampleName(file.name)
+    if (sample) { setAutoSample(sample); setModelName(sample) }
+    const tempFromName = extractTemperatureFromFilename(file.name)
+    if (tempFromName !== null) { setAutoTemp(tempFromName); setTemperature(tempFromName) }
+
+    // Mean sample temperature from the file's Temperature column (overrides name).
+    const parsed = parseCombinedFile(buf)
+    if (parsed) {
+      const temps = parsed.temperature.filter(v => isFinite(v))
+      if (temps.length > 0) {
+        const meanT = Math.round((temps.reduce((a, b) => a + b, 0) / temps.length) * 10) / 10
+        setAutoTemp(meanT)
+        setTemperature(meanT)
+      }
+    }
+  }, [])
+
   // ── Step 1 → Step 2: Load & Process ───────────────────────────────────────
 
   const handleLoadFiles = useCallback(async () => {
     setError('')
+
+    // One combined file: source + response share a single time axis, so we
+    // build the synced data directly — no clock offset, no unit conversion.
+    if (inputMode === 'one') {
+      if (!aioFile || !aioBuffer) { setError(t('analysis.errUploadCombined')); return }
+      setLoading(true)
+      try {
+        const parsed = parseCombinedFile(aioBuffer)
+        if (!parsed) { setError(t('analysis.errParseFailed')); return }
+        const data: SyncedData = {
+          tSrc: parsed.time, vSrc: parsed.source,
+          tCal: parsed.time, vCal: parsed.response,
+        }
+        if (data.tSrc.length < 20) { setError(t('analysis.errNotEnoughOverlap')); return }
+        setSynced(data)
+
+        let tMin = Infinity, tMax = -Infinity
+        for (const tt of data.tSrc) { if (tt < tMin) tMin = tt; if (tt > tMax) tMax = tt }
+        setRangeMin(tMin); setRangeMax(tMax)
+        const span = tMax - tMin
+        setSelMin(Math.round(tMin + span * 0.3))
+        setSelMax(Math.round(tMin + span * 0.7))
+        setManualPeak1(Math.round(tMin + span * 0.35))
+        setManualPeak2(Math.round(tMin + span * 0.5))
+        setManualResp(Math.round(tMin + span * 0.45))
+
+        if (waveType === 'square') {
+          const detected = detectSquarePeriod(data.tSrc, data.vSrc)
+          if (isFinite(detected) && detected > 0) setSquarePeriod(Math.round(detected * 10) / 10)
+        }
+        setStep(2)
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     if (!c80File || !srcFile || !c80Buffer || !srcBuffer) {
       setError(t('analysis.errUploadBoth'))
       return
@@ -319,7 +393,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, waveType, t])
+  }, [inputMode, aioFile, aioBuffer, c80File, srcFile, c80Buffer, srcBuffer, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, waveType, t])
 
   // ── Handle draggable peak lines on chart ──────────────────────────────────
 
@@ -720,7 +794,21 @@ export default function AnalysisPage() {
       <section className="space-y-6">
         <h2 className="text-xl font-bold">{t('analysis.step1Title')}</h2>
 
-        {/* File uploads — two columns */}
+        {/* Input mode: two separate files vs one combined file */}
+        <div className="flex items-center gap-4 text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--bg-secondary)]">
+          <span className="font-medium">{t('analysis.inputMode')}:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="inputMode" checked={inputMode === 'two'} onChange={() => setInputMode('two')} className="accent-accent" />
+            {t('analysis.twoFiles')}
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="inputMode" checked={inputMode === 'one'} onChange={() => setInputMode('one')} className="accent-accent" />
+            {t('analysis.oneFile')}
+          </label>
+        </div>
+
+        {inputMode === 'two' ? (
+        /* File uploads — two columns */
         <div className="grid grid-cols-2 gap-6">
           {/* C80 (Response) */}
           <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)] space-y-3 hover:border-accent transition-colors">
@@ -797,6 +885,27 @@ export default function AnalysisPage() {
             </div>
           </div>
         </div>
+        ) : (
+        /* Combined all-in-one file */
+        <div className="p-4 rounded-lg border border-[var(--border)] border-l-4 border-l-accent bg-[var(--bg-secondary)] space-y-3 hover:border-accent transition-colors">
+          <h3 className="font-semibold">{t('analysis.combinedData')}</h3>
+          <input
+            type="file"
+            accept=".csv,.txt,.dat"
+            onChange={handleAioUpload}
+            className="block w-full text-sm cursor-pointer rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg)] p-3 file:me-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer hover:border-accent transition-colors"
+          />
+          {aioFile && (
+            <p className="text-xs text-green-600 dark:text-green-400">{aioFile.name}</p>
+          )}
+          {(autoDate || autoTemp !== null || autoSample) && (
+            <p className="text-xs text-accent">
+              {t('analysis.autoDetected')} {[autoSample && `Sample: ${autoSample}`, autoDate && `Date: ${autoDate}`, autoTemp !== null && `Temp: ${autoTemp}°C`].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          <p className="text-xs text-[var(--text-muted)]">{t('analysis.combinedHint')}</p>
+        </div>
+        )}
 
         <hr className="border-[var(--border)]" />
 

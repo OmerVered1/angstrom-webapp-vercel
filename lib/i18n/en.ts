@@ -115,6 +115,11 @@ export const en: Translations = {
     step3Title: '3. Analysis Results',
     responseData: 'Power Response Data',
     sourceData: 'Power Source Data',
+    inputMode: 'Input',
+    twoFiles: 'Two files',
+    oneFile: 'One combined file',
+    combinedData: 'Combined Data (source + response)',
+    combinedHint: 'One file with a shared time axis, source (mW) and response (mW) columns. No clock alignment needed.',
     timeUnit: 'Time Unit',
     powerUnit: 'Power Unit',
     responseStartTime: 'Response Start Time (HH:MM:SS)',
@@ -203,6 +208,7 @@ export const en: Translations = {
     supabaseNotConfiguredSaving:
       'Supabase not configured \u2014 set env vars to enable saving.',
     errUploadBoth: 'Please upload both data files.',
+    errUploadCombined: 'Please upload the combined data file.',
     errParseFailed:
       'Could not parse one or both files. Check the file format.',
     errNotEnoughOverlap:

@@ -107,6 +107,11 @@ export interface Translations {
     step3Title: string
     responseData: string
     sourceData: string
+    inputMode: string
+    twoFiles: string
+    oneFile: string
+    combinedData: string
+    combinedHint: string
     timeUnit: string
     powerUnit: string
     responseStartTime: string
@@ -193,6 +198,7 @@ export interface Translations {
     saving: string
     supabaseNotConfiguredSaving: string
     errUploadBoth: string
+    errUploadCombined: string
     errParseFailed: string
     errNotEnoughOverlap: string
     errTooFewPoints: string
