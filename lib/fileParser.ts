@@ -83,7 +83,7 @@ export function parseFile(content: ArrayBuffer, filename: string): ParsedData | 
 export function isCombinedFile(content: ArrayBuffer): boolean {
   const text = decodeBytes(content)
   const head = text.split(/\r?\n/).slice(0, 60).join('\n').toLowerCase()
-  return head.includes('smu source') && head.includes('heatflow') && head.includes('response')
+  return head.includes('smu') && (head.includes('heatflow') || head.includes('heat flow'))
 }
 
 /**
@@ -105,8 +105,10 @@ export function parseCombinedFile(content: ArrayBuffer): CombinedParsed | null {
       if (!trimmed.includes('\t')) continue
       const cols = trimmed.split('\t').map(s => s.trim().toLowerCase())
       const ti = cols.findIndex(c => /time\s*\(s\)|^time$/.test(c))
-      const si = cols.findIndex(c => c.includes('smu source') || (c.includes('source') && c.includes('mw')))
-      const ri = cols.findIndex(c => c.includes('heatflow') || (c.includes('response') && !c.includes('temp')))
+      // Source = the SMU column; response = the HeatFlow column. Column names
+      // and order vary between captures, so match by keyword and read by index.
+      const si = cols.findIndex(c => c.includes('smu'))
+      const ri = cols.findIndex(c => c.includes('heatflow') || c.includes('heat flow'))
       if (ti >= 0 && si >= 0 && ri >= 0) {
         tCol = ti; srcCol = si; respCol = ri
         // Prefer the sample "Temperature" column over "External Temp".
