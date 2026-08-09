@@ -1133,7 +1133,7 @@ export default function AnalysisPage() {
 
         <button
           onClick={handleLoadFiles}
-          disabled={loading || !c80File || !srcFile}
+          disabled={loading || (inputMode === 'one' ? !aioFile : (!c80File || !srcFile))}
           className="w-full px-6 py-3 rounded-lg bg-accent text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 text-base shadow-md"
         >
           {loading && step < 2 ? t('analysis.processing') : t('analysis.loadProcessFiles')}
