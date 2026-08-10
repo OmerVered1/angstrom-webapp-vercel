@@ -422,8 +422,12 @@ export function estimateFundamentalPeriod(
   const L = tN - t0
   if (L <= 0) return null
 
-  const maxCycles = opts.maxCycles ?? 20
-  const grid = opts.gridSize ?? 80
+  // Allow as many cycles as the sampling can resolve (~5 samples/cycle),
+  // so short periods with many cycles in the window are still found.
+  const dt = L / (time.length - 1)
+  const resolvableCycles = Math.floor(L / (5 * dt)) // ≈ (n-1)/5
+  const maxCycles = opts.maxCycles ?? Math.min(400, Math.max(20, resolvableCycles))
+  const grid = opts.gridSize ?? Math.min(240, Math.max(80, maxCycles * 2))
   const fMin = 2 / L          // 2 cycles in window
   const fMax = maxCycles / L  // up to maxCycles in window
 

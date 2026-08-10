@@ -171,6 +171,8 @@ export const he: Translations = {
     processing: 'מעבד\u2026',
     region: 'אזור:',
     selected: 'נבחר:',
+    clickToPlace: 'לחץ על הגרף כדי לקבוע',
+    clickToPlaceHint: 'כל לחיצה קובעת את הסמן המודגש וממשיכה לבא',
     manualModeDesc:
       'מצב ידני \u2014 לחץ על הגרף לבחירת שיאים, או הקלד ערכים למטה.',
     clickToSelectPeak1: 'לחץ על הגרף לבחירת שיא מקור 1',

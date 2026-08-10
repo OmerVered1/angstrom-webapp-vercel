@@ -130,6 +130,8 @@ export default function AnalysisPage() {
   const [manualPeak1, setManualPeak1] = useState(0)
   const [manualPeak2, setManualPeak2] = useState(0)
   const [manualResp, setManualResp] = useState(0)
+  // Which manual marker the next chart click sets (click-to-place).
+  const [activeMarker, setActiveMarker] = useState<'p1' | 'p2' | 'r'>('p1')
   const [plotRevision, setPlotRevision] = useState(0)
 
   // Step 3 — results
@@ -406,6 +408,19 @@ export default function AnalysisPage() {
     if (update['shapes[3].x0'] != null) setManualResp(Math.round(update['shapes[3].x0']))
   }, [analysisMode])
 
+  // Click-to-place: clicking the overview chart sets the active marker's time,
+  // then advances P1 → P2 → R → P1 so three clicks place all three.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePlotClick = useCallback((e: any) => {
+    if (analysisMode !== 'Manual') return
+    const x = e?.points?.[0]?.x
+    if (typeof x !== 'number') return
+    const xr = Math.round(x)
+    if (activeMarker === 'p1') { setManualPeak1(xr); setActiveMarker('p2') }
+    else if (activeMarker === 'p2') { setManualPeak2(xr); setActiveMarker('r') }
+    else { setManualResp(xr); setActiveMarker('p1') }
+  }, [analysisMode, activeMarker])
+
   // ── Step 2 → Step 3: Run Analysis ─────────────────────────────────────────
 
   const handleRunAnalysis = useCallback(() => {
@@ -515,13 +530,15 @@ export default function AnalysisPage() {
         {
           x: tCalF, y: vCalF, name: 'Response', type: 'scatter' as const, mode: 'lines' as const,
           line: { color: '#e74c3c', width: 2 },
+          yaxis: 'y2' as const,
         },
       ],
       layout: {
         title: `Stable Zone Analysis \u2014 \u0394t = ${results.rawLagDt.toFixed(2)}s`,
         height: 500,
         xaxis: { title: 'Time (s)' },
-        yaxis: { title: 'Power (mW)' },
+        yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
+        yaxis2: { title: 'Response Power (mW)', side: 'right' as const, overlaying: 'y' as const, titlefont: { color: '#e74c3c' } },
         legend: { orientation: 'h' as const, y: 1.12 },
         hovermode: 'x unified' as const,
         shapes: [
@@ -530,7 +547,7 @@ export default function AnalysisPage() {
             line: { color: '#3498db', dash: 'dash' as const, width: 1 },
           },
           {
-            type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean,
+            type: 'line' as const, x0: selMin, x1: selMax, y0: calMean, y1: calMean, yref: 'y2' as const,
             line: { color: '#e74c3c', dash: 'dash' as const, width: 1 },
           },
           // Mean peak/trough levels — Source
@@ -544,14 +561,14 @@ export default function AnalysisPage() {
             y0: results.meanTroughSrc, y1: results.meanTroughSrc,
             line: { color: '#27ae60', dash: 'dot' as const, width: 2 },
           },
-          // Mean peak/trough levels — Response
+          // Mean peak/trough levels — Response (secondary axis)
           {
-            type: 'line' as const, x0: selMin, x1: selMax,
+            type: 'line' as const, x0: selMin, x1: selMax, yref: 'y2' as const,
             y0: results.meanPeakCal, y1: results.meanPeakCal,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
           {
-            type: 'line' as const, x0: selMin, x1: selMax,
+            type: 'line' as const, x0: selMin, x1: selMax, yref: 'y2' as const,
             y0: results.meanTroughCal, y1: results.meanTroughCal,
             line: { color: '#f39c12', dash: 'dot' as const, width: 2 },
           },
@@ -599,13 +616,13 @@ export default function AnalysisPage() {
           },
           // Amplitude level labels — Response (orange)
           {
-            x: selMax, y: results.meanPeakCal, xanchor: 'right' as const,
+            x: selMax, y: results.meanPeakCal, xanchor: 'right' as const, yref: 'y2' as const,
             text: `Resp peak: ${results.meanPeakCal.toFixed(1)}  `,
             showarrow: false, font: { color: '#f39c12', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
           },
           {
-            x: selMax, y: results.meanTroughCal, xanchor: 'right' as const,
+            x: selMax, y: results.meanTroughCal, xanchor: 'right' as const, yref: 'y2' as const,
             text: `Resp trough: ${results.meanTroughCal.toFixed(1)}  `,
             showarrow: false, font: { color: '#f39c12', size: 10, family: 'monospace' },
             bgcolor: 'rgba(255,255,255,0.8)',
@@ -1179,6 +1196,7 @@ export default function AnalysisPage() {
               config={overviewPlot.config}
               style={{ width: '100%' }}
               onRelayout={analysisMode === 'Manual' ? handleRelayout : undefined}
+              onClick={analysisMode === 'Manual' ? handlePlotClick : undefined}
             />
           )}
 
@@ -1187,6 +1205,26 @@ export default function AnalysisPage() {
               <p className="text-sm text-accent font-medium">
                 {t('analysis.manualModeDesc')}
               </p>
+              {/* Click-to-place: pick which marker the next chart click sets */}
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-medium">{t('analysis.clickToPlace')}:</span>
+                {([
+                  { key: 'p1' as const, label: t('analysis.srcPeak1'), color: '#3498db' },
+                  { key: 'p2' as const, label: t('analysis.srcPeak2'), color: '#2980b9' },
+                  { key: 'r' as const, label: t('analysis.respPeak'), color: '#e74c3c' },
+                ]).map(m => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setActiveMarker(m.key)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${activeMarker === m.key ? 'border-accent bg-accent/15 font-semibold' : 'border-[var(--border)] hover:bg-[var(--bg-hover)]'}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.color }} />
+                    {m.label}
+                  </button>
+                ))}
+                <span className="text-xs text-[var(--text-muted)]">{t('analysis.clickToPlaceHint')}</span>
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 {([
                   { label: t('analysis.srcPeak1'), value: manualPeak1, setter: setManualPeak1, color: '#3498db' },

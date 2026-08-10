@@ -173,6 +173,8 @@ export const en: Translations = {
     selected: 'Selected:',
     manualModeDesc:
       'Manual Mode \u2014 Click on the chart to select peaks, or type values below.',
+    clickToPlace: 'Click chart to set',
+    clickToPlaceHint: 'each click sets the highlighted marker, then advances',
     clickToSelectPeak1: 'Click on the chart to select Source Peak 1',
     clickToSelectPeak2: 'Click on the chart to select Source Peak 2',
     clickToSelectResp: 'Click on the chart to select Response Peak',
