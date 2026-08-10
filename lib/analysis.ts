@@ -253,7 +253,9 @@ export function runAutoAnalysis(
 
 /**
  * Run manual analysis using user-selected peak positions.
- * `clicks` = [[t1_src, v1], [t2_src, v2], [t1_cal, v1]]
+ * `clicks` = [srcPeak1, srcPeak2, respPeak1, respPeak2] (each [t, v]).
+ * The two response peaks give an averaged, wrap-free lag and the response
+ * period. A 3-click form (2 source + 1 response) is still accepted.
  */
 export function runManualAnalysis(
   tCal: number[],
@@ -265,15 +267,31 @@ export function runManualAnalysis(
   tMax: number,
   clicks: [number, number][],
 ): AnalysisResults {
-  if (clicks.length < 3) throw new Error('Need 3 click coordinates for manual analysis')
+  if (clicks.length < 3) throw new Error('Need at least 3 click coordinates for manual analysis')
 
   const p1 = snapToPeak(clicks[0][0], tSrc, vSrc)
   const p2 = snapToPeak(clicks[1][0], tSrc, vSrc)
-  const p3 = snapToPeak(clicks[2][0], tCal, vCal)
 
   const T = Math.abs(p2.time - p1.time)
   const w = (2 * Math.PI) / T
-  const dt = p3.time - p1.time
+
+  // Snap response clicks in a tight window (≈ quarter period) so a noisy,
+  // heavily-attenuated response doesn't jump to a neighbouring cycle.
+  const dtCal = tCal.length > 1 ? (tCal[tCal.length - 1] - tCal[0]) / (tCal.length - 1) : 1
+  const respWin = Math.min(50, Math.max(5, Math.floor((T / 4) / dtCal)))
+  const r1 = snapToPeak(clicks[2][0], tCal, vCal, respWin)
+  const r2 = clicks.length >= 4 ? snapToPeak(clicks[3][0], tCal, vCal, respWin) : null
+
+  // Lag: with two response peaks, average the two matched lags (srcP1→respP1,
+  // srcP2→respP2); the user's picks resolve any phase-wrap ambiguity.
+  let dt: number
+  let tRespFromClicks: number | null = null
+  if (r2) {
+    dt = ((r1.time - p1.time) + (r2.time - p2.time)) / 2
+    tRespFromClicks = Math.abs(r2.time - r1.time)
+  } else {
+    dt = r1.time - p1.time
+  }
 
   // Amplitudes — per-cycle averaging (same logic as auto mode)
   const distSrc = Math.max(Math.floor(vSrc.length / 8), 10)
@@ -289,11 +307,11 @@ export function runManualAnalysis(
   const a1 = computeCycleAmplitude(vSrc, useSrcPeaks)
   const a2 = computeCycleAmplitude(vCal, useCalPeaks)
 
-  // Response period (diagnostic): auto-detect from response peaks, independent of clicks
-  const tResp = useCalPeaks.length >= 2 ? meanDiff(useCalPeaks.map(i => tCal[i])) : null
+  // Response period: from the two clicked response peaks if given, else auto.
+  const tResp = tRespFromClicks ?? (useCalPeaks.length >= 2 ? meanDiff(useCalPeaks.map(i => tCal[i])) : null)
 
   // Mean peak/trough levels for visualization — only troughs between consecutive peaks
-  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, p3.time)
+  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, p1.time, p2.time, r1.time)
   result.periodTResp = tResp && isFinite(tResp) && tResp > 0 ? tResp : null
   result.frequencyFResp = result.periodTResp ? 1 / result.periodTResp : null
   result.meanPeakSrc = meanOfIndices(vSrc, useSrcPeaks)

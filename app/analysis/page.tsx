@@ -129,9 +129,10 @@ export default function AnalysisPage() {
   // Step 2 — manual peaks
   const [manualPeak1, setManualPeak1] = useState(0)
   const [manualPeak2, setManualPeak2] = useState(0)
-  const [manualResp, setManualResp] = useState(0)
+  const [manualResp, setManualResp] = useState(0)   // response peak 1
+  const [manualResp2, setManualResp2] = useState(0) // response peak 2
   // Which manual marker the next chart click sets (click-to-place).
-  const [activeMarker, setActiveMarker] = useState<'p1' | 'p2' | 'r'>('p1')
+  const [activeMarker, setActiveMarker] = useState<'sp1' | 'sp2' | 'rp1' | 'rp2'>('sp1')
   // Manual mode is split into two sub-steps: pick region, then pick peaks.
   const [manualStep, setManualStep] = useState<'region' | 'peaks'>('region')
   const [plotRevision, setPlotRevision] = useState(0)
@@ -320,6 +321,7 @@ export default function AnalysisPage() {
         setManualPeak1(Math.round(tMin + span * 0.35))
         setManualPeak2(Math.round(tMin + span * 0.5))
         setManualResp(Math.round(tMin + span * 0.45))
+        setManualResp2(Math.round(tMin + span * 0.55))
 
         if (waveType === 'square') {
           const detected = detectSquarePeriod(data.tSrc, data.vSrc)
@@ -385,6 +387,7 @@ export default function AnalysisPage() {
       setManualPeak1(Math.round(tMin + span * 0.35))
       setManualPeak2(Math.round(tMin + span * 0.5))
       setManualResp(Math.round(tMin + span * 0.45))
+        setManualResp2(Math.round(tMin + span * 0.55))
 
       // For square mode, auto-detect period from source edges (user can edit later)
       if (waveType === 'square') {
@@ -406,23 +409,25 @@ export default function AnalysisPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleRelayout = useCallback((update: any) => {
     if (analysisMode !== 'Manual') return
-    // Shapes: [0] = green rect, [1] = P1, [2] = P2, [3] = R
-    if (update['shapes[1].x0'] != null) setManualPeak1(Math.round(update['shapes[1].x0']))
-    if (update['shapes[2].x0'] != null) setManualPeak2(Math.round(update['shapes[2].x0']))
-    if (update['shapes[3].x0'] != null) setManualResp(Math.round(update['shapes[3].x0']))
+    // Region-peaks chart shapes: [0]=SrcP1 [1]=SrcP2 [2]=RespP1 [3]=RespP2
+    if (update['shapes[0].x0'] != null) setManualPeak1(Math.round(update['shapes[0].x0']))
+    if (update['shapes[1].x0'] != null) setManualPeak2(Math.round(update['shapes[1].x0']))
+    if (update['shapes[2].x0'] != null) setManualResp(Math.round(update['shapes[2].x0']))
+    if (update['shapes[3].x0'] != null) setManualResp2(Math.round(update['shapes[3].x0']))
   }, [analysisMode])
 
-  // Click-to-place: clicking the overview chart sets the active marker's time,
-  // then advances P1 → P2 → R → P1 so three clicks place all three.
+  // Click-to-place: each chart click sets the active marker's time, then
+  // advances SrcP1 → SrcP2 → RespP1 → RespP2 → SrcP1.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePlotClick = useCallback((e: any) => {
     if (analysisMode !== 'Manual') return
     const x = e?.points?.[0]?.x
     if (typeof x !== 'number') return
     const xr = Math.round(x)
-    if (activeMarker === 'p1') { setManualPeak1(xr); setActiveMarker('p2') }
-    else if (activeMarker === 'p2') { setManualPeak2(xr); setActiveMarker('r') }
-    else { setManualResp(xr); setActiveMarker('p1') }
+    if (activeMarker === 'sp1') { setManualPeak1(xr); setActiveMarker('sp2') }
+    else if (activeMarker === 'sp2') { setManualPeak2(xr); setActiveMarker('rp1') }
+    else if (activeMarker === 'rp1') { setManualResp(xr); setActiveMarker('rp2') }
+    else { setManualResp2(xr); setActiveMarker('sp1') }
   }, [analysisMode, activeMarker])
 
   // ── Step 2 → Step 3: Run Analysis ─────────────────────────────────────────
@@ -489,6 +494,7 @@ export default function AnalysisPage() {
           [manualPeak1, 0],
           [manualPeak2, 0],
           [manualResp, 0],
+          [manualResp2, 0],
         ]
         res = runManualAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax, clicks)
       }
@@ -500,7 +506,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, waveType, squarePeriod, fftPeriodOverride, t])
+  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, manualResp2, waveType, squarePeriod, fftPeriodOverride, t])
 
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
@@ -758,7 +764,6 @@ export default function AnalysisPage() {
       layout: {
         title: 'Full Experiment Overview',
         height: 420,
-        uirevision: (analysisMode === 'Manual' && manualStep === 'peaks') ? `manual-${plotRevision}` : 'auto',
         xaxis: { title: 'Time (s)' },
         yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
         yaxis2: {
@@ -780,22 +785,61 @@ export default function AnalysisPage() {
             fillcolor: 'rgba(46,204,113,0.15)',
             line: { color: 'rgba(46,204,113,0.5)', width: 1 },
           },
-          ...((analysisMode === 'Manual' && manualStep === 'peaks') ? [
-            { type: 'line' as const, x0: manualPeak1, x1: manualPeak1, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#3498db', dash: 'dot' as const, width: 3 } },
-            { type: 'line' as const, x0: manualPeak2, x1: manualPeak2, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#2980b9', dash: 'dot' as const, width: 3 } },
-            { type: 'line' as const, x0: manualResp, x1: manualResp, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#e74c3c', dash: 'dot' as const, width: 3 } },
-          ] : []),
         ],
-        annotations: (analysisMode === 'Manual' && manualStep === 'peaks') ? [
-          { x: manualPeak1, y: 1, yref: 'paper' as const, text: 'P1', showarrow: false, font: { color: '#3498db', size: 12, weight: 700 }, yanchor: 'bottom' as const },
-          { x: manualPeak2, y: 1, yref: 'paper' as const, text: 'P2', showarrow: false, font: { color: '#2980b9', size: 12, weight: 700 }, yanchor: 'bottom' as const },
-          { x: manualResp, y: 1, yref: 'paper' as const, text: 'R', showarrow: false, font: { color: '#e74c3c', size: 12, weight: 700 }, yanchor: 'bottom' as const },
-        ] : [],
         margin: { t: 60, b: 50 },
       },
-      config: { responsive: true, edits: (analysisMode === 'Manual' && manualStep === 'peaks') ? { shapePosition: true } : {} },
+      config: { responsive: true },
     }
-  }, [synced, selMin, selMax, analysisMode, manualStep, plotRevision, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax])
+
+  // ── Region-zoom plot (Step 2, manual peaks sub-step) ──────────────────────
+  // Shows ONLY the selected region and the four draggable/clickable peak
+  // markers (2 source, 2 response), so peaks can be placed without the
+  // region overlay in the way.
+
+  const MANUAL_MARKERS = [
+    { key: 'sp1' as const, x: manualPeak1, color: '#3498db', label: 'SrcP1' },
+    { key: 'sp2' as const, x: manualPeak2, color: '#2980b9', label: 'SrcP2' },
+    { key: 'rp1' as const, x: manualResp, color: '#e74c3c', label: 'RespP1' },
+    { key: 'rp2' as const, x: manualResp2, color: '#e67e22', label: 'RespP2' },
+  ]
+
+  const regionPeaksPlot = useMemo(() => {
+    if (!synced) return null
+    const tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
+    for (let i = 0; i < synced.tSrc.length; i++) {
+      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) { tSrcF.push(synced.tSrc[i]); vSrcF.push(synced.vSrc[i]) }
+    }
+    for (let i = 0; i < synced.tCal.length; i++) {
+      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) { tCalF.push(synced.tCal[i]); vCalF.push(synced.vCal[i]) }
+    }
+    const markers = [
+      { x: manualPeak1, color: '#3498db', label: 'SrcP1' },
+      { x: manualPeak2, color: '#2980b9', label: 'SrcP2' },
+      { x: manualResp, color: '#e74c3c', label: 'RespP1' },
+      { x: manualResp2, color: '#e67e22', label: 'RespP2' },
+    ]
+    return {
+      data: [
+        { x: tSrcF, y: vSrcF, name: 'Source', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#3498db', width: 1.5 } },
+        { x: tCalF, y: vCalF, name: 'Response', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#e74c3c', width: 1.5 }, yaxis: 'y2' as const },
+      ],
+      layout: {
+        title: 'Selected Region — pick 2 source & 2 response peaks',
+        height: 440,
+        uirevision: `peaks-${plotRevision}`,
+        xaxis: { title: 'Time (s)', range: [selMin, selMax] },
+        yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
+        yaxis2: { title: 'Response Power (mW)', side: 'right' as const, overlaying: 'y' as const, titlefont: { color: '#e74c3c' } },
+        legend: { orientation: 'h' as const, y: 1.12 },
+        hovermode: 'x unified' as const,
+        shapes: markers.map(m => ({ type: 'line' as const, x0: m.x, x1: m.x, y0: 0, y1: 1, yref: 'paper' as const, line: { color: m.color, dash: 'dot' as const, width: 3 } })),
+        annotations: markers.map(m => ({ x: m.x, y: 1, yref: 'paper' as const, text: m.label, showarrow: false, font: { color: m.color, size: 11, weight: 700 }, yanchor: 'bottom' as const })),
+        margin: { t: 60, b: 50 },
+      },
+      config: { responsive: true, edits: { shapePosition: true } },
+    }
+  }, [synced, selMin, selMax, plotRevision, manualPeak1, manualPeak2, manualResp, manualResp2])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -1209,70 +1253,77 @@ export default function AnalysisPage() {
             </p>
           )}
 
-          {overviewPlot && (
+          {/* Region step: full overview with the region highlighted */}
+          {(analysisMode !== 'Manual' || manualStep === 'region') && overviewPlot && (
             <PlotlyChart
               data={overviewPlot.data as Plotly.Data[]}
               layout={overviewPlot.layout as Partial<Plotly.Layout>}
               config={overviewPlot.config}
               style={{ width: '100%' }}
-              onRelayout={(analysisMode === 'Manual' && manualStep === 'peaks') ? handleRelayout : undefined}
-              onClick={(analysisMode === 'Manual' && manualStep === 'peaks') ? handlePlotClick : undefined}
             />
           )}
 
-          {analysisMode === 'Manual' && manualStep === 'peaks' && (
-            <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
-              <p className="text-sm text-accent font-medium">
-                {t('analysis.manualModeDesc')}
-              </p>
-              {/* Click-to-place: pick which marker the next chart click sets */}
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium">{t('analysis.clickToPlace')}:</span>
-                {([
-                  { key: 'p1' as const, label: t('analysis.srcPeak1'), color: '#3498db' },
-                  { key: 'p2' as const, label: t('analysis.srcPeak2'), color: '#2980b9' },
-                  { key: 'r' as const, label: t('analysis.respPeak'), color: '#e74c3c' },
-                ]).map(m => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setActiveMarker(m.key)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${activeMarker === m.key ? 'border-accent bg-accent/15 font-semibold' : 'border-[var(--border)] hover:bg-[var(--bg-hover)]'}`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.color }} />
-                    {m.label}
-                  </button>
-                ))}
-                <span className="text-xs text-[var(--text-muted)]">{t('analysis.clickToPlaceHint')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {([
-                  { label: t('analysis.srcPeak1'), value: manualPeak1, setter: setManualPeak1, color: '#3498db' },
-                  { label: t('analysis.srcPeak2'), value: manualPeak2, setter: setManualPeak2, color: '#2980b9' },
-                  { label: t('analysis.respPeak'), value: manualResp, setter: setManualResp, color: '#e74c3c' },
-                ]).map(({ label, value, setter, color }) => (
-                  <div key={label} className="p-3 rounded-lg border border-[var(--border)]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                      <label className="text-xs font-medium">{label}</label>
+          {/* Peaks step: zoomed to the selected region, click/drag the 4 markers */}
+          {analysisMode === 'Manual' && manualStep === 'peaks' && regionPeaksPlot && (
+            <>
+              <PlotlyChart
+                data={regionPeaksPlot.data as Plotly.Data[]}
+                layout={regionPeaksPlot.layout as Partial<Plotly.Layout>}
+                config={regionPeaksPlot.config}
+                style={{ width: '100%' }}
+                onRelayout={handleRelayout}
+                onClick={handlePlotClick}
+              />
+              <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
+                <p className="text-sm text-accent font-medium">
+                  {t('analysis.manualModeDesc')}
+                </p>
+                {/* Click-to-place: pick which marker the next chart click sets */}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">{t('analysis.clickToPlace')}:</span>
+                  {MANUAL_MARKERS.map(m => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setActiveMarker(m.key)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${activeMarker === m.key ? 'border-accent bg-accent/15 font-semibold' : 'border-[var(--border)] hover:bg-[var(--bg-hover)]'}`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.color }} />
+                      {m.label}
+                    </button>
+                  ))}
+                  <span className="text-xs text-[var(--text-muted)]">{t('analysis.clickToPlaceHint')}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {([
+                    { label: 'SrcP1', value: manualPeak1, setter: setManualPeak1, color: '#3498db' },
+                    { label: 'SrcP2', value: manualPeak2, setter: setManualPeak2, color: '#2980b9' },
+                    { label: 'RespP1', value: manualResp, setter: setManualResp, color: '#e74c3c' },
+                    { label: 'RespP2', value: manualResp2, setter: setManualResp2, color: '#e67e22' },
+                  ]).map(({ label, value, setter, color }) => (
+                    <div key={label} className="p-3 rounded-lg border border-[var(--border)]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                        <label className="text-xs font-medium">{label}</label>
+                      </div>
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={e => { setter(Number(e.target.value)); setPlotRevision(r => r + 1) }}
+                        step={0.1}
+                        className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
+                      />
                     </div>
-                    <input
-                      type="number"
-                      value={value}
-                      onChange={e => { setter(Number(e.target.value)); setPlotRevision(r => r + 1) }}
-                      step={0.1}
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm"
-                    />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Navigation / run */}
           {analysisMode === 'Manual' && manualStep === 'region' ? (
             <button
-              onClick={() => { setActiveMarker('p1'); setManualStep('peaks') }}
+              onClick={() => { setActiveMarker('sp1'); setManualStep('peaks') }}
               className="px-6 py-3 rounded-lg bg-accent text-white font-semibold hover:opacity-90 transition-opacity"
             >
               {t('analysis.nextChoosePeaks')}
