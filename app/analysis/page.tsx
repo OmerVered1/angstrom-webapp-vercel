@@ -132,6 +132,8 @@ export default function AnalysisPage() {
   const [manualResp, setManualResp] = useState(0)
   // Which manual marker the next chart click sets (click-to-place).
   const [activeMarker, setActiveMarker] = useState<'p1' | 'p2' | 'r'>('p1')
+  // Manual mode is split into two sub-steps: pick region, then pick peaks.
+  const [manualStep, setManualStep] = useState<'region' | 'peaks'>('region')
   const [plotRevision, setPlotRevision] = useState(0)
 
   // Step 3 — results
@@ -323,6 +325,7 @@ export default function AnalysisPage() {
           const detected = detectSquarePeriod(data.tSrc, data.vSrc)
           if (isFinite(detected) && detected > 0) setSquarePeriod(Math.round(detected * 10) / 10)
         }
+        setManualStep('region')
         setStep(2)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
@@ -389,6 +392,7 @@ export default function AnalysisPage() {
         if (isFinite(detected) && detected > 0) setSquarePeriod(Math.round(detected * 10) / 10)
       }
 
+      setManualStep('region')
       setStep(2)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
@@ -754,7 +758,7 @@ export default function AnalysisPage() {
       layout: {
         title: 'Full Experiment Overview',
         height: 420,
-        uirevision: analysisMode === 'Manual' ? `manual-${plotRevision}` : 'auto',
+        uirevision: (analysisMode === 'Manual' && manualStep === 'peaks') ? `manual-${plotRevision}` : 'auto',
         xaxis: { title: 'Time (s)' },
         yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
         yaxis2: {
@@ -776,22 +780,22 @@ export default function AnalysisPage() {
             fillcolor: 'rgba(46,204,113,0.15)',
             line: { color: 'rgba(46,204,113,0.5)', width: 1 },
           },
-          ...(analysisMode === 'Manual' ? [
+          ...((analysisMode === 'Manual' && manualStep === 'peaks') ? [
             { type: 'line' as const, x0: manualPeak1, x1: manualPeak1, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#3498db', dash: 'dot' as const, width: 3 } },
             { type: 'line' as const, x0: manualPeak2, x1: manualPeak2, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#2980b9', dash: 'dot' as const, width: 3 } },
             { type: 'line' as const, x0: manualResp, x1: manualResp, y0: 0, y1: 1, yref: 'paper' as const, line: { color: '#e74c3c', dash: 'dot' as const, width: 3 } },
           ] : []),
         ],
-        annotations: analysisMode === 'Manual' ? [
+        annotations: (analysisMode === 'Manual' && manualStep === 'peaks') ? [
           { x: manualPeak1, y: 1, yref: 'paper' as const, text: 'P1', showarrow: false, font: { color: '#3498db', size: 12, weight: 700 }, yanchor: 'bottom' as const },
           { x: manualPeak2, y: 1, yref: 'paper' as const, text: 'P2', showarrow: false, font: { color: '#2980b9', size: 12, weight: 700 }, yanchor: 'bottom' as const },
           { x: manualResp, y: 1, yref: 'paper' as const, text: 'R', showarrow: false, font: { color: '#e74c3c', size: 12, weight: 700 }, yanchor: 'bottom' as const },
         ] : [],
         margin: { t: 60, b: 50 },
       },
-      config: { responsive: true, edits: analysisMode === 'Manual' ? { shapePosition: true } : {} },
+      config: { responsive: true, edits: (analysisMode === 'Manual' && manualStep === 'peaks') ? { shapePosition: true } : {} },
     }
-  }, [synced, selMin, selMax, analysisMode, plotRevision, manualPeak1, manualPeak2, manualResp])
+  }, [synced, selMin, selMax, analysisMode, manualStep, plotRevision, manualPeak1, manualPeak2, manualResp])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -1162,32 +1166,48 @@ export default function AnalysisPage() {
         <section className="space-y-6">
           <h2 className="text-xl font-bold">{t('analysis.step2Title')}</h2>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium whitespace-nowrap">{t('analysis.region')}</label>
-              <input
-                type="range"
-                min={rangeMin}
-                max={rangeMax}
-                step={1}
-                value={selMin}
-                onChange={e => setSelMin(Math.min(Number(e.target.value), selMax - 10))}
-                className="flex-1 accent-success"
-              />
-              <input
-                type="range"
-                min={rangeMin}
-                max={rangeMax}
-                step={1}
-                value={selMax}
-                onChange={e => setSelMax(Math.max(Number(e.target.value), selMin + 10))}
-                className="flex-1 accent-success"
-              />
+          {/* Manual mode sub-step indicator */}
+          {analysisMode === 'Manual' && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className={manualStep === 'region' ? 'font-semibold text-accent' : 'text-[var(--text-muted)]'}>1. {t('analysis.manualStepRegion')}</span>
+              <span className="text-[var(--text-muted)]">\u2192</span>
+              <span className={manualStep === 'peaks' ? 'font-semibold text-accent' : 'text-[var(--text-muted)]'}>2. {t('analysis.manualStepPeaks')}</span>
             </div>
+          )}
+
+          {/* Region controls \u2014 full sliders in region step (or non-manual), summary in peaks step */}
+          {(analysisMode !== 'Manual' || manualStep === 'region') ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium whitespace-nowrap">{t('analysis.region')}</label>
+                <input
+                  type="range"
+                  min={rangeMin}
+                  max={rangeMax}
+                  step={1}
+                  value={selMin}
+                  onChange={e => setSelMin(Math.min(Number(e.target.value), selMax - 10))}
+                  className="flex-1 accent-success"
+                />
+                <input
+                  type="range"
+                  min={rangeMin}
+                  max={rangeMax}
+                  step={1}
+                  value={selMax}
+                  onChange={e => setSelMax(Math.max(Number(e.target.value), selMin + 10))}
+                  className="flex-1 accent-success"
+                />
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">
+                {t('analysis.selected')} {selMin.toFixed(0)}s \u2014 {selMax.toFixed(0)}s (of {rangeMin.toFixed(0)}s \u2014 {rangeMax.toFixed(0)}s)
+              </p>
+            </div>
+          ) : (
             <p className="text-xs text-[var(--text-muted)]">
-              {t('analysis.selected')} {selMin.toFixed(0)}s \u2014 {selMax.toFixed(0)}s (of {rangeMin.toFixed(0)}s \u2014 {rangeMax.toFixed(0)}s)
+              {t('analysis.region')}: {selMin.toFixed(0)}s \u2014 {selMax.toFixed(0)}s
             </p>
-          </div>
+          )}
 
           {overviewPlot && (
             <PlotlyChart
@@ -1195,12 +1215,12 @@ export default function AnalysisPage() {
               layout={overviewPlot.layout as Partial<Plotly.Layout>}
               config={overviewPlot.config}
               style={{ width: '100%' }}
-              onRelayout={analysisMode === 'Manual' ? handleRelayout : undefined}
-              onClick={analysisMode === 'Manual' ? handlePlotClick : undefined}
+              onRelayout={(analysisMode === 'Manual' && manualStep === 'peaks') ? handleRelayout : undefined}
+              onClick={(analysisMode === 'Manual' && manualStep === 'peaks') ? handlePlotClick : undefined}
             />
           )}
 
-          {analysisMode === 'Manual' && (
+          {analysisMode === 'Manual' && manualStep === 'peaks' && (
             <div className="p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-3">
               <p className="text-sm text-accent font-medium">
                 {t('analysis.manualModeDesc')}
@@ -1249,13 +1269,33 @@ export default function AnalysisPage() {
             </div>
           )}
 
-          <button
-            onClick={handleRunAnalysis}
-            disabled={loading}
-            className="px-6 py-3 rounded-lg bg-success text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {loading && step === 2 ? t('analysis.analysing') : t('analysis.runAnalysis')}
-          </button>
+          {/* Navigation / run */}
+          {analysisMode === 'Manual' && manualStep === 'region' ? (
+            <button
+              onClick={() => { setActiveMarker('p1'); setManualStep('peaks') }}
+              className="px-6 py-3 rounded-lg bg-accent text-white font-semibold hover:opacity-90 transition-opacity"
+            >
+              {t('analysis.nextChoosePeaks')}
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              {analysisMode === 'Manual' && (
+                <button
+                  onClick={() => setManualStep('region')}
+                  className="px-4 py-3 rounded-lg border border-[var(--border)] font-medium hover:bg-[var(--bg-hover)] transition-colors"
+                >
+                  {t('analysis.backToRegion')}
+                </button>
+              )}
+              <button
+                onClick={handleRunAnalysis}
+                disabled={loading}
+                className="px-6 py-3 rounded-lg bg-success text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {loading && step === 2 ? t('analysis.analysing') : t('analysis.runAnalysis')}
+              </button>
+            </div>
+          )}
         </section>
       )}
 

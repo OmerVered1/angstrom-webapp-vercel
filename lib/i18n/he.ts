@@ -173,6 +173,10 @@ export const he: Translations = {
     selected: 'נבחר:',
     clickToPlace: 'לחץ על הגרף כדי לקבוע',
     clickToPlaceHint: 'כל לחיצה קובעת את הסמן המודגש וממשיכה לבא',
+    manualStepRegion: 'בחירת אזור',
+    manualStepPeaks: 'בחירת שיאים',
+    nextChoosePeaks: 'הבא: בחירת שיאים →',
+    backToRegion: '← חזרה לבחירת אזור',
     manualModeDesc:
       'מצב ידני \u2014 לחץ על הגרף לבחירת שיאים, או הקלד ערכים למטה.',
     clickToSelectPeak1: 'לחץ על הגרף לבחירת שיא מקור 1',
