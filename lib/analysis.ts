@@ -476,6 +476,44 @@ export function estimateFundamentalPeriod(
   return bestFreq > 0 ? 1 / bestFreq : null
 }
 
+/**
+ * Reconstruct the best-fit single sine at a given frequency, sampled at each
+ * `time[i]`. The fit is `mean + A·cos(ω·t − φ)` — one first-order sinusoid —
+ * where A and φ come from the Fourier fundamental at `freq`. This is the
+ * "smoothing": the noisy signal is replaced by its dominant sine component.
+ */
+export function reconstructSineAt(time: number[], value: number[], freq: number): number[] {
+  if (time.length === 0 || time.length !== value.length || !(freq > 0)) return [...value]
+  let mean = 0
+  for (const v of value) mean += v
+  mean /= value.length
+  const { amplitude, phase } = extractFourierFundamental(time, value, freq)
+  const w = 2 * Math.PI * freq
+  return time.map(t => mean + amplitude * Math.cos(w * t - phase))
+}
+
+/**
+ * Smooth both signals to a single sine at a SHARED frequency taken from the
+ * source (the drive frequency). A forced linear response oscillates at the
+ * drive frequency, so fitting the response at the same ω is both physically
+ * correct and more stable than fitting the weak response independently.
+ * Returns the smoothed value arrays (time axes unchanged) plus the frequency,
+ * or null if no fundamental could be estimated.
+ */
+export function smoothToSharedSine(
+  tSrc: number[], vSrc: number[],
+  tCal: number[], vCal: number[],
+): { vSrc: number[]; vCal: number[]; freq: number } | null {
+  const period = estimateFundamentalPeriod(tSrc, linearDetrend(tSrc, vSrc))
+  if (!period || !isFinite(period) || period <= 0) return null
+  const freq = 1 / period
+  return {
+    vSrc: reconstructSineAt(tSrc, vSrc, freq),
+    vCal: reconstructSineAt(tCal, vCal, freq),
+    freq,
+  }
+}
+
 /** Mean sample spacing of `time`. */
 function meanDt(time: number[]): number {
   if (time.length < 2) return 1

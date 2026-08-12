@@ -166,6 +166,9 @@ export interface Translations {
     manualModeDesc: string
     clickToPlace: string
     clickToPlaceHint: string
+    smoothToSine: string
+    smoothToSineHint: string
+    errSmoothFailed: string
     manualStepRegion: string
     manualStepPeaks: string
     nextChoosePeaks: string

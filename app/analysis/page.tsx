@@ -12,6 +12,7 @@ import {
 } from '@/lib/fileParser'
 import {
   syncAndFilterData,
+  smoothToSharedSine,
   runAutoAnalysis,
   runAutoHybridAnalysis,
   runAutoFFTAnalysis,
@@ -135,6 +136,8 @@ export default function AnalysisPage() {
   const [activeMarker, setActiveMarker] = useState<'sp1' | 'sp2' | 'rp1' | 'rp2'>('sp1')
   // Manual mode is split into two sub-steps: pick region, then pick peaks.
   const [manualStep, setManualStep] = useState<'region' | 'peaks'>('region')
+  // Smoothing: fit each signal to a single sine (shared ω) before analysis.
+  const [smoothToSine, setSmoothToSine] = useState(false)
   const [plotRevision, setPlotRevision] = useState(0)
 
   // Step 3 — results
@@ -470,21 +473,30 @@ export default function AnalysisPage() {
         return
       }
 
+      // Smoothing: replace both signals with their single-sine fits (shared ω
+      // from the source) so every mode analyses the clean waveform.
+      let vSrcUse = vSrcFilt, vCalUse = vCalFilt
+      if (smoothToSine && waveType !== 'square') {
+        const sm = smoothToSharedSine(tSrcFilt, vSrcFilt, tCalFilt, vCalFilt)
+        if (!sm) { setError(t('analysis.errSmoothFailed')); return }
+        vSrcUse = sm.vSrc; vCalUse = sm.vCal
+      }
+
       let res: AnalysisResults
       if (waveType === 'square') {
         res = runSquareAnalysis(
-          tCalFilt, vCalFilt, tSrcFilt, vSrcFilt,
+          tCalFilt, vCalUse, tSrcFilt, vSrcUse,
           params, selMin, selMax,
           squarePeriod > 0 ? squarePeriod : undefined,
         )
         // Surface the period we ended up using so the user can see it
         if (!squarePeriod || squarePeriod <= 0) setSquarePeriod(res.periodT)
       } else if (analysisMode === 'Auto') {
-        res = runAutoAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+        res = runAutoAnalysis(tCalFilt, vCalUse, tSrcFilt, vSrcUse, params, selMin, selMax)
       } else if (analysisMode === 'AutoHybrid') {
-        res = runAutoHybridAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+        res = runAutoHybridAnalysis(tCalFilt, vCalUse, tSrcFilt, vSrcUse, params, selMin, selMax)
       } else if (analysisMode === 'AutoFFT') {
-        res = runAutoFFTAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax)
+        res = runAutoFFTAnalysis(tCalFilt, vCalUse, tSrcFilt, vSrcUse, params, selMin, selMax)
         // Surface the auto-detected period so user sees what was used
         if (!fftPeriodOverride || fftPeriodOverride <= 0) {
           setFftPeriodOverride(Math.round(res.periodT * 10) / 10)
@@ -496,7 +508,7 @@ export default function AnalysisPage() {
           [manualResp, 0],
           [manualResp2, 0],
         ]
-        res = runManualAnalysis(tCalFilt, vCalFilt, tSrcFilt, vSrcFilt, params, selMin, selMax, clicks)
+        res = runManualAnalysis(tCalFilt, vCalUse, tSrcFilt, vSrcUse, params, selMin, selMax, clicks)
       }
 
       setResults(res)
@@ -506,7 +518,7 @@ export default function AnalysisPage() {
     } finally {
       setLoading(false)
     }
-  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, manualResp2, waveType, squarePeriod, fftPeriodOverride, t])
+  }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, manualResp2, smoothToSine, waveType, squarePeriod, fftPeriodOverride, t])
 
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
@@ -803,6 +815,28 @@ export default function AnalysisPage() {
     { key: 'rp1' as const, x: manualResp, color: '#e74c3c', label: 'RespP1' },
     { key: 'rp2' as const, x: manualResp2, color: '#e67e22', label: 'RespP2' },
   ]
+
+  // Single-sine fits over the selected region, for the smoothing overlay.
+  const smoothedRegion = useMemo(() => {
+    if (!synced || !smoothToSine || waveType === 'square') return null
+    const tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
+    for (let i = 0; i < synced.tSrc.length; i++) {
+      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) { tSrcF.push(synced.tSrc[i]); vSrcF.push(synced.vSrc[i]) }
+    }
+    for (let i = 0; i < synced.tCal.length; i++) {
+      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) { tCalF.push(synced.tCal[i]); vCalF.push(synced.vCal[i]) }
+    }
+    if (tSrcF.length < 10 || tCalF.length < 10) return null
+    const sm = smoothToSharedSine(tSrcF, vSrcF, tCalF, vCalF)
+    if (!sm) return null
+    return { tSrc: tSrcF, vSrc: sm.vSrc, tCal: tCalF, vCal: sm.vCal, freq: sm.freq }
+  }, [synced, smoothToSine, waveType, selMin, selMax])
+
+  // Dashed fit-overlay traces (source on y, response on y2) when smoothing is on.
+  const smoothOverlayTraces: Plotly.Data[] = smoothedRegion ? [
+    { x: smoothedRegion.tSrc, y: smoothedRegion.vSrc, name: 'Source fit', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#1f5f8b', width: 2, dash: 'dash' as const } },
+    { x: smoothedRegion.tCal, y: smoothedRegion.vCal, name: 'Response fit', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#922b21', width: 2, dash: 'dash' as const }, yaxis: 'y2' as const },
+  ] : []
 
   const regionPeaksPlot = useMemo(() => {
     if (!synced) return null
@@ -1253,10 +1287,19 @@ export default function AnalysisPage() {
             </p>
           )}
 
+          {/* Smoothing: fit each signal to a single sine before analysis (sine wave only) */}
+          {waveType !== 'square' && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={smoothToSine} onChange={e => setSmoothToSine(e.target.checked)} className="accent-accent" />
+              <span className="text-sm font-medium">{t('analysis.smoothToSine')}</span>
+              <span className="text-xs text-[var(--text-muted)]">{t('analysis.smoothToSineHint')}</span>
+            </label>
+          )}
+
           {/* Region step: full overview with the region highlighted */}
           {(analysisMode !== 'Manual' || manualStep === 'region') && overviewPlot && (
             <PlotlyChart
-              data={overviewPlot.data as Plotly.Data[]}
+              data={[...(overviewPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
               layout={overviewPlot.layout as Partial<Plotly.Layout>}
               config={overviewPlot.config}
               style={{ width: '100%' }}
@@ -1267,7 +1310,7 @@ export default function AnalysisPage() {
           {analysisMode === 'Manual' && manualStep === 'peaks' && regionPeaksPlot && (
             <>
               <PlotlyChart
-                data={regionPeaksPlot.data as Plotly.Data[]}
+                data={[...(regionPeaksPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
                 layout={regionPeaksPlot.layout as Partial<Plotly.Layout>}
                 config={regionPeaksPlot.config}
                 style={{ width: '100%' }}
@@ -1382,7 +1425,7 @@ export default function AnalysisPage() {
           {/* Analysis chart */}
           {analysisPlot && (
             <PlotlyChart
-              data={analysisPlot.data as Plotly.Data[]}
+              data={[...(analysisPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
               layout={analysisPlot.layout as Partial<Plotly.Layout>}
               config={analysisPlot.config}
               style={{ width: '100%' }}
