@@ -520,24 +520,46 @@ export default function AnalysisPage() {
     }
   }, [synced, selMin, selMax, modelName, testDate, testTime, tCalInput, tSrcInput, r1, r2, c80TimeUnit, c80PwrUnit, srcTimeUnit, srcPwrUnit, useCalibration, systemLag, analysisMode, manualPeak1, manualPeak2, manualResp, manualResp2, smoothToSine, waveType, squarePeriod, fftPeriodOverride, t])
 
+  // Single-sine fits over the selected region (when smoothing is enabled).
+  // Charts show these smoothed signals in place of the raw ones.
+  const smoothedRegion = useMemo(() => {
+    if (!synced || !smoothToSine || waveType === 'square') return null
+    const tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
+    for (let i = 0; i < synced.tSrc.length; i++) {
+      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) { tSrcF.push(synced.tSrc[i]); vSrcF.push(synced.vSrc[i]) }
+    }
+    for (let i = 0; i < synced.tCal.length; i++) {
+      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) { tCalF.push(synced.tCal[i]); vCalF.push(synced.vCal[i]) }
+    }
+    if (tSrcF.length < 10 || tCalF.length < 10) return null
+    const sm = smoothToSharedSine(tSrcF, vSrcF, tCalF, vCalF)
+    if (!sm) return null
+    return { tSrc: tSrcF, vSrc: sm.vSrc, tCal: tCalF, vCal: sm.vCal, freq: sm.freq }
+  }, [synced, smoothToSine, waveType, selMin, selMax])
+
   // ── Analysis plot (Step 3) ────────────────────────────────────────────────
 
   const analysisPlot = useMemo(() => {
     if (!synced || !results) return null
 
-    const tSrcF: number[] = [], vSrcF: number[] = []
+    let tSrcF: number[] = [], vSrcF: number[] = []
     for (let i = 0; i < synced.tSrc.length; i++) {
       if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) {
         tSrcF.push(synced.tSrc[i])
         vSrcF.push(synced.vSrc[i])
       }
     }
-    const tCalF: number[] = [], vCalF: number[] = []
+    let tCalF: number[] = [], vCalF: number[] = []
     for (let i = 0; i < synced.tCal.length; i++) {
       if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) {
         tCalF.push(synced.tCal[i])
         vCalF.push(synced.vCal[i])
       }
+    }
+    // When smoothing is on, show the fitted single sines instead of the raw signals.
+    if (smoothedRegion) {
+      tSrcF = smoothedRegion.tSrc; vSrcF = smoothedRegion.vSrc
+      tCalF = smoothedRegion.tCal; vCalF = smoothedRegion.vCal
     }
 
     const srcMean = vSrcF.reduce((a, b) => a + b, 0) / vSrcF.length
@@ -654,7 +676,7 @@ export default function AnalysisPage() {
       },
       config: { responsive: true },
     }
-  }, [synced, results, selMin, selMax])
+  }, [synced, results, selMin, selMax, smoothedRegion])
 
   // ── Save to database ──────────────────────────────────────────────────────
 
@@ -816,36 +838,19 @@ export default function AnalysisPage() {
     { key: 'rp2' as const, x: manualResp2, color: '#e67e22', label: 'RespP2' },
   ]
 
-  // Single-sine fits over the selected region, for the smoothing overlay.
-  const smoothedRegion = useMemo(() => {
-    if (!synced || !smoothToSine || waveType === 'square') return null
-    const tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
-    for (let i = 0; i < synced.tSrc.length; i++) {
-      if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) { tSrcF.push(synced.tSrc[i]); vSrcF.push(synced.vSrc[i]) }
-    }
-    for (let i = 0; i < synced.tCal.length; i++) {
-      if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) { tCalF.push(synced.tCal[i]); vCalF.push(synced.vCal[i]) }
-    }
-    if (tSrcF.length < 10 || tCalF.length < 10) return null
-    const sm = smoothToSharedSine(tSrcF, vSrcF, tCalF, vCalF)
-    if (!sm) return null
-    return { tSrc: tSrcF, vSrc: sm.vSrc, tCal: tCalF, vCal: sm.vCal, freq: sm.freq }
-  }, [synced, smoothToSine, waveType, selMin, selMax])
-
-  // Dashed fit-overlay traces (source on y, response on y2) when smoothing is on.
-  const smoothOverlayTraces: Plotly.Data[] = smoothedRegion ? [
-    { x: smoothedRegion.tSrc, y: smoothedRegion.vSrc, name: 'Source fit', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#1f5f8b', width: 2, dash: 'dash' as const } },
-    { x: smoothedRegion.tCal, y: smoothedRegion.vCal, name: 'Response fit', type: 'scatter' as const, mode: 'lines' as const, line: { color: '#922b21', width: 2, dash: 'dash' as const }, yaxis: 'y2' as const },
-  ] : []
-
   const regionPeaksPlot = useMemo(() => {
     if (!synced) return null
-    const tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
+    let tSrcF: number[] = [], vSrcF: number[] = [], tCalF: number[] = [], vCalF: number[] = []
     for (let i = 0; i < synced.tSrc.length; i++) {
       if (synced.tSrc[i] >= selMin && synced.tSrc[i] <= selMax) { tSrcF.push(synced.tSrc[i]); vSrcF.push(synced.vSrc[i]) }
     }
     for (let i = 0; i < synced.tCal.length; i++) {
       if (synced.tCal[i] >= selMin && synced.tCal[i] <= selMax) { tCalF.push(synced.tCal[i]); vCalF.push(synced.vCal[i]) }
+    }
+    // When smoothing is on, click peaks on the fitted single sines.
+    if (smoothedRegion) {
+      tSrcF = smoothedRegion.tSrc; vSrcF = smoothedRegion.vSrc
+      tCalF = smoothedRegion.tCal; vCalF = smoothedRegion.vCal
     }
     const markers = [
       { x: manualPeak1, color: '#3498db', label: 'SrcP1' },
@@ -873,7 +878,7 @@ export default function AnalysisPage() {
       },
       config: { responsive: true, edits: { shapePosition: true } },
     }
-  }, [synced, selMin, selMax, plotRevision, manualPeak1, manualPeak2, manualResp, manualResp2])
+  }, [synced, selMin, selMax, plotRevision, manualPeak1, manualPeak2, manualResp, manualResp2, smoothedRegion])
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -1152,6 +1157,15 @@ export default function AnalysisPage() {
           </label>
         </div>
 
+        {/* Smoothing: fit each signal to a single sine before analysis (sine wave only) */}
+        {waveType !== 'square' && (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={smoothToSine} onChange={e => setSmoothToSine(e.target.checked)} className="accent-accent" />
+            <span className="text-sm font-medium">{t('analysis.smoothToSine')}</span>
+            <span className="text-xs text-[var(--text-muted)]">{t('analysis.smoothToSineHint')}</span>
+          </label>
+        )}
+
         <div className="flex items-center gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={useCalibration} onChange={e => setUseCalibration(e.target.checked)}
@@ -1287,19 +1301,10 @@ export default function AnalysisPage() {
             </p>
           )}
 
-          {/* Smoothing: fit each signal to a single sine before analysis (sine wave only) */}
-          {waveType !== 'square' && (
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={smoothToSine} onChange={e => setSmoothToSine(e.target.checked)} className="accent-accent" />
-              <span className="text-sm font-medium">{t('analysis.smoothToSine')}</span>
-              <span className="text-xs text-[var(--text-muted)]">{t('analysis.smoothToSineHint')}</span>
-            </label>
-          )}
-
           {/* Region step: full overview with the region highlighted */}
           {(analysisMode !== 'Manual' || manualStep === 'region') && overviewPlot && (
             <PlotlyChart
-              data={[...(overviewPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
+              data={overviewPlot.data as Plotly.Data[]}
               layout={overviewPlot.layout as Partial<Plotly.Layout>}
               config={overviewPlot.config}
               style={{ width: '100%' }}
@@ -1310,7 +1315,7 @@ export default function AnalysisPage() {
           {analysisMode === 'Manual' && manualStep === 'peaks' && regionPeaksPlot && (
             <>
               <PlotlyChart
-                data={[...(regionPeaksPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
+                data={regionPeaksPlot.data as Plotly.Data[]}
                 layout={regionPeaksPlot.layout as Partial<Plotly.Layout>}
                 config={regionPeaksPlot.config}
                 style={{ width: '100%' }}
@@ -1425,7 +1430,7 @@ export default function AnalysisPage() {
           {/* Analysis chart */}
           {analysisPlot && (
             <PlotlyChart
-              data={[...(analysisPlot.data as Plotly.Data[]), ...smoothOverlayTraces]}
+              data={analysisPlot.data as Plotly.Data[]}
               layout={analysisPlot.layout as Partial<Plotly.Layout>}
               config={analysisPlot.config}
               style={{ width: '100%' }}
