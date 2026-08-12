@@ -514,6 +514,100 @@ export function smoothToSharedSine(
   }
 }
 
+/**
+ * Split a capture into oscillating segments. Multi-run files hold several
+ * bursts of different periods separated by long heater-off gaps; a single sine
+ * can only represent one burst. Segments are found from the strong source
+ * peaks: wherever the gap between consecutive peaks is much larger than the
+ * typical period, a new segment starts. Returns index ranges into `time`.
+ */
+export function detectSegments(time: number[], value: number[]): Array<{ start: number; end: number }> {
+  const n = time.length
+  const whole = [{ start: 0, end: Math.max(0, n - 1) }]
+  if (n < 20) return whole
+
+  let lo = Infinity, hi = -Infinity
+  for (const v of value) { if (v < lo) lo = v; if (v > hi) hi = v }
+  if (hi - lo <= 0) return whole
+  const thr = lo + (hi - lo) * 0.6
+
+  // Strong source peaks, de-duplicated to one per ~5 s.
+  const peakIdx: number[] = []
+  for (const i of findPeaks(value, 3)) {
+    if (value[i] < thr) continue
+    const last = peakIdx[peakIdx.length - 1]
+    if (last == null || time[i] - time[last] > 5) peakIdx.push(i)
+    else if (value[i] > value[last]) peakIdx[peakIdx.length - 1] = i
+  }
+  if (peakIdx.length < 3) return whole
+
+  const intervals: number[] = []
+  for (let i = 1; i < peakIdx.length; i++) intervals.push(time[peakIdx[i]] - time[peakIdx[i - 1]])
+  const sorted = [...intervals].sort((a, b) => a - b)
+  const median = sorted[Math.floor(sorted.length / 2)]
+  if (!(median > 0)) return whole
+  const gapThresh = median * 3
+  const half = median / 2
+
+  // Group peaks into runs, splitting at large gaps.
+  const runs: number[][] = []
+  let cur: number[] = [peakIdx[0]]
+  for (let i = 1; i < peakIdx.length; i++) {
+    if (time[peakIdx[i]] - time[peakIdx[i - 1]] > gapThresh) { runs.push(cur); cur = [] }
+    cur.push(peakIdx[i])
+  }
+  if (cur.length) runs.push(cur)
+
+  const segs = runs.filter(r => r.length >= 2).map(r => {
+    const t0 = time[r[0]] - half
+    const t1 = time[r[r.length - 1]] + half
+    let start = 0; while (start < n - 1 && time[start] < t0) start++
+    let end = n - 1; while (end > 0 && time[end] > t1) end--
+    return { start, end }
+  }).filter(s => s.end > s.start)
+
+  return segs.length ? segs : whole
+}
+
+/**
+ * Piecewise single-sine smoothing for multi-segment captures. Each detected
+ * oscillating segment is fit to its own sine (shared ω from the source);
+ * samples inside a segment are replaced by that fit, gaps between segments keep
+ * their raw values. Handles separate source/response time axes (two-file mode)
+ * by matching the response window to each source segment's time range.
+ */
+export function smoothPiecewise(
+  tSrc: number[], vSrc: number[],
+  tCal: number[], vCal: number[],
+): { vSrc: number[]; vCal: number[] } {
+  const outSrc = [...vSrc]
+  const outCal = [...vCal]
+  const segs = detectSegments(tSrc, vSrc)
+
+  for (const seg of segs) {
+    if (seg.end - seg.start < 8) continue
+    const sT = tSrc.slice(seg.start, seg.end + 1)
+    const sV = vSrc.slice(seg.start, seg.end + 1)
+    const period = estimateFundamentalPeriod(sT, linearDetrend(sT, sV))
+    if (!period || !isFinite(period) || period <= 0) continue
+    const freq = 1 / period
+
+    const rSrc = reconstructSineAt(sT, sV, freq)
+    for (let i = 0; i < rSrc.length; i++) outSrc[seg.start + i] = rSrc[i]
+
+    // Response samples within the same time window, fit at the source frequency.
+    const t0 = tSrc[seg.start], t1 = tSrc[seg.end]
+    const cIdx: number[] = []
+    for (let i = 0; i < tCal.length; i++) if (tCal[i] >= t0 && tCal[i] <= t1) cIdx.push(i)
+    if (cIdx.length >= 8) {
+      const rResp = reconstructSineAt(cIdx.map(i => tCal[i]), cIdx.map(i => vCal[i]), freq)
+      for (let k = 0; k < cIdx.length; k++) outCal[cIdx[k]] = rResp[k]
+    }
+  }
+
+  return { vSrc: outSrc, vCal: outCal }
+}
+
 /** Mean sample spacing of `time`. */
 function meanDt(time: number[]): number {
   if (time.length < 2) return 1

@@ -13,6 +13,7 @@ import {
 import {
   syncAndFilterData,
   smoothToSharedSine,
+  smoothPiecewise,
   runAutoAnalysis,
   runAutoHybridAnalysis,
   runAutoFFTAnalysis,
@@ -772,10 +773,12 @@ export default function AnalysisPage() {
 
   // ── Overview plot (Step 2) ────────────────────────────────────────────────
 
-  // Whole-file single-sine fit, shown in the overview when smoothing is on.
+  // Per-segment piecewise single-sine fit for the overview (each oscillating
+  // burst fit to its own sine; gaps between bursts keep raw values), so
+  // multi-period files smooth correctly across the whole chart.
   const smoothedFull = useMemo(() => {
     if (!synced || !smoothToSine || waveType === 'square') return null
-    return smoothToSharedSine(synced.tSrc, synced.vSrc, synced.tCal, synced.vCal)
+    return smoothPiecewise(synced.tSrc, synced.vSrc, synced.tCal, synced.vCal)
   }, [synced, smoothToSine, waveType])
 
   const overviewPlot = useMemo(() => {
