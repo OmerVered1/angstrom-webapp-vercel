@@ -772,6 +772,12 @@ export default function AnalysisPage() {
 
   // ── Overview plot (Step 2) ────────────────────────────────────────────────
 
+  // Whole-file single-sine fit, shown in the overview when smoothing is on.
+  const smoothedFull = useMemo(() => {
+    if (!synced || !smoothToSine || waveType === 'square') return null
+    return smoothToSharedSine(synced.tSrc, synced.vSrc, synced.tCal, synced.vCal)
+  }, [synced, smoothToSine, waveType])
+
   const overviewPlot = useMemo(() => {
     if (!synced) return null
 
@@ -779,7 +785,7 @@ export default function AnalysisPage() {
       data: [
         {
           x: synced.tSrc,
-          y: synced.vSrc,
+          y: smoothedFull ? smoothedFull.vSrc : synced.vSrc,
           name: 'Source (Keithley)',
           type: 'scatter' as const,
           mode: 'lines' as const,
@@ -787,7 +793,7 @@ export default function AnalysisPage() {
         },
         {
           x: synced.tCal,
-          y: synced.vCal,
+          y: smoothedFull ? smoothedFull.vCal : synced.vCal,
           name: 'Response (C80)',
           type: 'scatter' as const,
           mode: 'lines' as const,
@@ -796,7 +802,7 @@ export default function AnalysisPage() {
         },
       ],
       layout: {
-        title: 'Full Experiment Overview',
+        title: smoothedFull ? 'Full Experiment Overview (smoothed)' : 'Full Experiment Overview',
         height: 420,
         xaxis: { title: 'Time (s)' },
         yaxis: { title: 'Source Power (mW)', side: 'left' as const, titlefont: { color: '#3498db' } },
@@ -824,7 +830,7 @@ export default function AnalysisPage() {
       },
       config: { responsive: true },
     }
-  }, [synced, selMin, selMax])
+  }, [synced, selMin, selMax, smoothedFull])
 
   // ── Region-zoom plot (Step 2, manual peaks sub-step) ──────────────────────
   // Shows ONLY the selected region and the four draggable/clickable peak
