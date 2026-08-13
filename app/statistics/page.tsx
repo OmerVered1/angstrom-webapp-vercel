@@ -193,6 +193,9 @@ export default function StatisticsPage() {
   const [excludeSourceDevices, setExcludeSourceDevices] = useState<string[]>([])
   const [excludeResponseDevices, setExcludeResponseDevices] = useState<string[]>([])
   const [excludeGasAtmospheres, setExcludeGasAtmospheres] = useState<string[]>([])
+  const [excludeModes, setExcludeModes] = useState<string[]>([])
+  const [dateFrom, setDateFrom] = useState('')   // YYYY-MM-DD, '' = unset
+  const [dateTo, setDateTo] = useState('')
 
   // Toggle helper for an exclusion set: checked → remove from excluded, unchecked → add.
   const toggleExclude = useCallback(
@@ -226,6 +229,7 @@ export default function StatisticsPage() {
   const allSourceDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_source_device).filter((d): d is string => !!d))).sort(), [analyses])
   const allResponseDevices = useMemo(() => Array.from(new Set(analyses.map(a => a.power_response_device).filter((d): d is string => !!d))).sort(), [analyses])
   const allGasAtmospheres = useMemo(() => Array.from(new Set(analyses.map(a => a.gas_atmosphere).filter((g): g is string => !!g))).sort(), [analyses])
+  const allModes = useMemo(() => Array.from(new Set(analyses.map(a => a.analysis_mode).filter((m): m is string => !!m))).sort(), [analyses])
 
   // Numeric [min, max] period domain for the range slider.
   const periodDomain = useMemo<[number, number] | null>(() => {
@@ -261,9 +265,17 @@ export default function StatisticsPage() {
   // Reset every filter back to "all included".
   const resetAllFilters = useCallback(() => {
     setExcludeModels([]); setExcludeSourceDevices([]); setExcludeResponseDevices([])
-    setExcludeGasAtmospheres([]); setExcludePeriods([]); setFilterCal('All')
+    setExcludeGasAtmospheres([]); setExcludePeriods([]); setExcludeModes([])
+    setFilterCal('All'); setDateFrom(''); setDateTo('')
     setPeriodRange(periodDomain); setA1Range(a1Domain)
   }, [periodDomain, a1Domain])
+
+  // Parse a YYYY-MM-DD input as a local-midnight timestamp (matches parseTestDate).
+  const dateInputMs = (s: string): number | null => {
+    if (!s) return null
+    const [y, m, d] = s.split('-').map(Number)
+    return new Date(y, m - 1, d).getTime()
+  }
 
   // Period checkboxes limited to the slider range.
   const visiblePeriods = useMemo(() => {
@@ -288,9 +300,17 @@ export default function StatisticsPage() {
       if (a.power_source_device && excludeSourceDevices.includes(a.power_source_device)) return false
       if (a.power_response_device && excludeResponseDevices.includes(a.power_response_device)) return false
       if (a.gas_atmosphere && excludeGasAtmospheres.includes(a.gas_atmosphere)) return false
+      if (a.analysis_mode && excludeModes.includes(a.analysis_mode)) return false
+      if (dateFrom || dateTo) {
+        const d = parseTestDate(a.test_date).getTime()
+        const from = dateInputMs(dateFrom)
+        const to = dateInputMs(dateTo)
+        if (from != null && d < from) return false
+        if (to != null && d > to + 86400000 - 1) return false // include the whole "to" day
+      }
       return true
     })
-  }, [analyses, excludeModels, filterCal, periodRange, excludePeriods, a1Range, excludeSourceDevices, excludeResponseDevices, excludeGasAtmospheres])
+  }, [analyses, excludeModels, filterCal, periodRange, excludePeriods, a1Range, excludeSourceDevices, excludeResponseDevices, excludeGasAtmospheres, excludeModes, dateFrom, dateTo])
 
   const yMeta = Y_METRICS.find(m => m.key === yMetric)!
 
@@ -850,6 +870,31 @@ export default function StatisticsPage() {
               ) : (
                 <p className="text-xs text-[var(--text-muted)]">—</p>
               )}
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.analysisModeFilter')}</label>
+              <CheckboxList options={allModes} excluded={excludeModes} onToggle={toggleExclude(setExcludeModes)} />
+              <div className="flex items-center justify-end mt-1">
+                <button type="button" onClick={() => setExcludeModes([])} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('statistics.dateRange')}</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <span className="w-8">{t('statistics.dateFrom')}</span>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <span className="w-8">{t('statistics.dateTo')}</span>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    className="flex-1 px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm" />
+                </label>
+              </div>
+              <div className="flex items-center justify-end mt-1">
+                <button type="button" onClick={() => { setDateFrom(''); setDateTo('') }} className="text-xs text-[var(--accent)] hover:underline">{t('common.all')}</button>
+              </div>
             </div>
           </div>
 

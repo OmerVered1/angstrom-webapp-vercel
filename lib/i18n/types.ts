@@ -342,6 +342,10 @@ export interface Translations {
     periodRange: string
     noPeriodsInRange: string
     resetFilters: string
+    analysisModeFilter: string
+    dateRange: string
+    dateFrom: string
+    dateTo: string
     downloadStatsCsv: string
     mean: string
     std: string
