@@ -27,9 +27,9 @@ import {
 } from '@/lib/analysis'
 import { runSquareAnalysis, detectSquarePeriod } from '@/lib/squareAnalysis'
 import { supabase, isConfigured } from '@/lib/supabase'
-import { dbInsert, dbDelete } from '@/lib/dbClient'
+import { dbInsert, dbUpdate, dbDelete } from '@/lib/dbClient'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import type { Setup } from '@/lib/types'
+import type { Analysis, Setup } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,6 +62,10 @@ function extractSampleName(filename: string): string | null {
 
 // Preset gas atmospheres for the analysis form (plus free-text "Other").
 const GAS_ATMOSPHERES = ['Air', 'N₂', 'Ar', 'He', 'CO₂', 'Vacuum']
+
+// Duplicate-analysis match tolerances (period & A₁ "super close").
+const PERIOD_TOL_FRAC = 0.02, PERIOD_TOL_FLOOR = 1      // s
+const A1_TOL_FRAC = 0.02, A1_TOL_FLOOR = 0.5            // mW
 
 // ---------------------------------------------------------------------------
 // Component
@@ -145,6 +149,9 @@ export default function AnalysisPage() {
   const [results, setResults] = useState<AnalysisResults | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  // Duplicate-on-save prompt: the built row awaiting a decision + the match found.
+  const [pendingRow, setPendingRow] = useState<Record<string, unknown> | null>(null)
+  const [duplicateMatch, setDuplicateMatch] = useState<Analysis | null>(null)
 
   // Loading/error
   const [loading, setLoading] = useState(false)
@@ -724,6 +731,30 @@ export default function AnalysisPage() {
           row.graph_image = graphStr
         } catch { /* ignore serialization errors */ }
       }
+
+      // Duplicate check: same sample + date + method with very close period & A₁.
+      const savedMode = row.analysis_mode as string
+      const pv = results.periodT, a1 = results.amplitudeA1
+      const { data: cand } = await supabase
+        .from('analyses')
+        .select('*')
+        .eq('test_date', testDate)
+        .order('created_at', { ascending: false })
+      const match = ((cand ?? []) as Analysis[]).find(c =>
+        c.model_name?.trim().toLowerCase() === modelName.trim().toLowerCase() &&
+        c.analysis_mode === savedMode &&
+        Math.abs(c.period_t - pv) <= Math.max(PERIOD_TOL_FLOOR, PERIOD_TOL_FRAC * pv) &&
+        Math.abs(c.amplitude_a1 - a1) <= Math.max(A1_TOL_FLOOR, A1_TOL_FRAC * a1),
+      )
+
+      if (match) {
+        // Defer the write — ask the user via the duplicate modal.
+        setPendingRow(row)
+        setDuplicateMatch(match)
+        setSaving(false)
+        return
+      }
+
       const { error: dbErr } = await dbInsert('analyses', row)
       if (dbErr) throw new Error(dbErr)
       setSaveMsg(t('common.savedSuccess'))
@@ -733,6 +764,40 @@ export default function AnalysisPage() {
       setSaving(false)
     }
   }, [results, modelName, testDate, testTime, temperature, powerSourceDevice, powerResponseDevice, gasAtmosphere, waveType, analysisMode, r1, r2, useCalibration, systemLag, analysisPlot, t])
+
+  // ── Duplicate modal actions ───────────────────────────────────────────────
+
+  const closeDuplicate = useCallback(() => { setPendingRow(null); setDuplicateMatch(null) }, [])
+
+  const confirmReplace = useCallback(async () => {
+    if (!pendingRow || !duplicateMatch) return
+    setSaving(true); setSaveMsg('')
+    try {
+      const { error } = await dbUpdate('analyses', duplicateMatch.id, pendingRow)
+      if (error) throw new Error(error)
+      setSaveMsg(t('common.savedSuccess'))
+      closeDuplicate()
+    } catch (err: unknown) {
+      setSaveMsg(err instanceof Error ? err.message : 'Save failed.')
+    } finally {
+      setSaving(false)
+    }
+  }, [pendingRow, duplicateMatch, closeDuplicate, t])
+
+  const confirmSaveNew = useCallback(async () => {
+    if (!pendingRow) return
+    setSaving(true); setSaveMsg('')
+    try {
+      const { error } = await dbInsert('analyses', pendingRow)
+      if (error) throw new Error(error)
+      setSaveMsg(t('common.savedSuccess'))
+      closeDuplicate()
+    } catch (err: unknown) {
+      setSaveMsg(err instanceof Error ? err.message : 'Save failed.')
+    } finally {
+      setSaving(false)
+    }
+  }, [pendingRow, closeDuplicate, t])
 
   // ── Download CSV ──────────────────────────────────────────────────────────
 
@@ -896,6 +961,28 @@ export default function AnalysisPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <h1 className="text-3xl font-bold">{'\uD83D\uDCCA'} {t('analysis.title')}</h1>
+
+      {/* Duplicate-analysis prompt */}
+      {duplicateMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeDuplicate}>
+          <div className="w-full max-w-md rounded-xl bg-[var(--bg)] border border-[var(--border)] shadow-xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold">{t('analysis.duplicateTitle')}</h3>
+            <p className="text-sm text-[var(--text-muted)]">{t('analysis.duplicateMessage')}</p>
+            <div className="text-sm rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
+              <div className="font-medium">{duplicateMatch.model_name} | {duplicateMatch.test_date} | {duplicateMatch.analysis_mode}</div>
+              <div className="text-[var(--text-muted)]">T={duplicateMatch.period_t?.toFixed(1)}s \u00B7 A\u2081={duplicateMatch.amplitude_a1?.toFixed(1)}mW \u00B7 \u03B1={fmtAlpha(duplicateMatch.alpha_phase_raw)}</div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button onClick={closeDuplicate} disabled={saving}
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--bg-hover)] disabled:opacity-50">{t('common.cancel')}</button>
+              <button onClick={confirmSaveNew} disabled={saving}
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--bg-hover)] disabled:opacity-50">{t('analysis.saveAsNew')}</button>
+              <button onClick={confirmReplace} disabled={saving}
+                className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50">{t('analysis.replaceExisting')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300">

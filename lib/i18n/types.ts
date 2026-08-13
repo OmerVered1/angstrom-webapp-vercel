@@ -169,6 +169,10 @@ export interface Translations {
     smoothToSine: string
     smoothToSineHint: string
     errSmoothFailed: string
+    duplicateTitle: string
+    duplicateMessage: string
+    replaceExisting: string
+    saveAsNew: string
     manualStepRegion: string
     manualStepPeaks: string
     nextChoosePeaks: string
