@@ -186,6 +186,21 @@ export function syncAndFilterData(
 /**
  * Run automatic analysis using peak detection.
  */
+/**
+ * Detect the strong peaks of a signal, spacing them by ~0.7 of the given
+ * period so multi-cycle regions aren't merged. Falls back to length/8 spacing
+ * if no period is known. Returns indices of peaks above 60% of the range.
+ */
+function strongPeaks(time: number[], value: number[], period: number | null): number[] {
+  const dt = time.length > 1 ? (time[time.length - 1] - time[0]) / (time.length - 1) : 1
+  const dist = period && period > 0
+    ? Math.max(Math.floor((0.7 * period) / dt), 3)
+    : Math.max(Math.floor(value.length / 8), 10)
+  const lo = arrayMin(value), hi = arrayMax(value)
+  const thr = lo + (hi - lo) * 0.6
+  return findPeaks(value, dist).filter(i => value[i] >= thr)
+}
+
 export function runAutoAnalysis(
   tCal: number[],
   vCal: number[],
@@ -195,49 +210,42 @@ export function runAutoAnalysis(
   tMin: number,
   tMax: number,
 ): AnalysisResults {
-  // Use large distance (~1/8 of data) to avoid detecting noise between real peaks
-  const peaksSrc = findPeaks(vSrc, Math.max(Math.floor(vSrc.length / 8), 10))
-  const peaksCal = findPeaks(vCal, Math.max(Math.floor(vCal.length / 8), 10))
-
-  // Filter out noise: only keep peaks above 60% of range
-  const srcMin = arrayMin(vSrc), srcMax = arrayMax(vSrc)
-  const srcThreshold = srcMin + (srcMax - srcMin) * 0.6
-  const strongSrc = peaksSrc.filter(i => vSrc[i] >= srcThreshold)
-
-  const calMin = arrayMin(vCal), calMax = arrayMax(vCal)
-  const calThreshold = calMin + (calMax - calMin) * 0.6
-  const strongCal = peaksCal.filter(i => vCal[i] >= calThreshold)
+  // Size the peak spacing from the FFT-estimated period so short periods with
+  // many cycles in the window are detected correctly (not merged).
+  const Test = estimateFundamentalPeriod(tSrc, linearDetrend(tSrc, vSrc))
+  const strongSrc = strongPeaks(tSrc, vSrc, Test)
+  const strongCal = strongPeaks(tCal, vCal, Test)
 
   if (strongSrc.length < 2 || strongCal.length < 1) {
     throw new Error('Not enough peaks detected. Try manual mode or adjust the selection range.')
   }
 
-  // Period from source peaks
-  const peakTimesSrc = strongSrc.map(i => tSrc[i])
-  const T = meanDiff(peakTimesSrc)
+  const srcPeakTimes = strongSrc.map(i => tSrc[i])
+  const calPeakTimes = strongCal.map(i => tCal[i])
+  const T = Test && Test > 0 ? Test : meanDiff(srcPeakTimes)
   const w = (2 * Math.PI) / T
 
-  // Response period (diagnostic): mean diff between response peaks, if enough peaks
-  const tResp = strongCal.length >= 2 ? meanDiff(strongCal.map(i => tCal[i])) : null
+  // Robust lag: for each source peak take the NEAREST response peak (lag in
+  // (−T/2, T/2]) and use the median — stable against where the region starts.
+  const lags = srcPeakTimes.map(ts => {
+    let best = Infinity, bestLag = 0
+    for (const tc of calPeakTimes) {
+      const d = tc - ts
+      if (Math.abs(d) < best) { best = Math.abs(d); bestLag = d }
+    }
+    return bestLag
+  }).sort((a, b) => a - b)
+  const dt = lags.length ? lags[Math.floor(lags.length / 2)] : (calPeakTimes[0] - srcPeakTimes[0])
 
-  // Time lag between first source and first response peak
-  let tsFirst = tSrc[strongSrc[0]]
-  let tsSecond = tSrc[strongSrc[1]]
-  let tcFirst = tCal[strongCal[0]]
-  let dt = tcFirst - tsFirst
+  const tsFirst = srcPeakTimes[0]
+  const tsSecond = srcPeakTimes[1] ?? tsFirst + T
+  const tcMarker = tsFirst + dt // response peak paired with the first source peak
 
-  // Response peak should be between the two source peaks
-  if (dt < 0 && strongCal.length > 1) {
-    tcFirst = tCal[strongCal[1]]
-    dt = tcFirst - tsFirst
-  }
-
-  // Amplitudes — per-cycle averaging for robustness against drift/transients
+  const tResp = strongCal.length >= 2 ? meanDiff(calPeakTimes) : null
   const a1 = computeCycleAmplitude(vSrc, strongSrc)
   const a2 = computeCycleAmplitude(vCal, strongCal)
 
-  // Mean peak/trough levels for visualization — only use troughs between consecutive peaks
-  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcFirst)
+  const result = calculateThermalDiffusivity(a1, a2, T, w, dt, params, tMin, tMax, tsFirst, tsSecond, tcMarker)
   result.periodTResp = tResp && isFinite(tResp) && tResp > 0 ? tResp : null
   result.frequencyFResp = result.periodTResp ? 1 / result.periodTResp : null
   result.meanPeakSrc = meanOfIndices(vSrc, strongSrc)
@@ -804,31 +812,25 @@ export function runAutoFFTAnalysis(
   const tRespFFT = estimateFundamentalPeriod(cal.t, vCalD0)
   const tResp = tRespFFT && isFinite(tRespFFT) && tRespFFT > 0 ? tRespFFT : null
 
-  // Marker time: first up-crossing of source mean — purely visual
-  let mean = 0
-  for (const v of src.v) mean += v
-  mean /= src.v.length
-  let firstEdge = src.t[0]
-  for (let i = 1; i < src.v.length; i++) {
-    if (src.v[i - 1] < mean && src.v[i] >= mean) {
-      const frac = (mean - src.v[i - 1]) / (src.v[i] - src.v[i - 1])
-      firstEdge = src.t[i - 1] + frac * (src.t[i] - src.t[i - 1])
-      break
-    }
-  }
+  // Markers on real peaks: the first source peak, and the response peak it
+  // pairs with (source peak + phase lag). Not the mean up-crossing.
+  const speaks = strongPeaks(src.t, src.v, T)
+  let tsFirst = src.t[0]
+  if (speaks.length) tsFirst = src.t[speaks[0]]
+  else { let bi = 0; for (let i = 1; i < src.v.length; i++) if (src.v[i] > src.v[bi]) bi = i; tsFirst = src.t[bi] }
 
   const result = calculateThermalDiffusivity(
     lag.ampSrc,
     lag.ampCal,
     T,
     w,
-    Math.abs(dt),
+    dt,
     params,
     tMin,
     tMax,
-    firstEdge,
-    firstEdge + T,
-    firstEdge + Math.abs(dt),
+    tsFirst,
+    tsFirst + T,
+    tsFirst + dt,
   )
   result.periodTResp = tResp
   result.frequencyFResp = tResp ? 1 / tResp : null
